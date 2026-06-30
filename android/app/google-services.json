@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "664163758734",
+    "project_id": "yape-pagos",
+    "storage_bucket": "yape-pagos.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:664163758734:android:c37f049000e8ceadc2cfdf",
+        "android_client_info": {
+          "package_name": "com.novabytex.aplicativo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMVQjvIPzmAdL1h2CgiBoG10BBJ-ZnfhY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
