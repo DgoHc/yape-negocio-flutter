@@ -78,7 +78,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           title: const Text('Verificar Correo'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go('/login'),
+            onPressed: () {
+              context.read<AuthBloc>().add(LogoutRequested());
+              context.go('/login');
+            },
           ),
         ),
         body: SafeArea(
