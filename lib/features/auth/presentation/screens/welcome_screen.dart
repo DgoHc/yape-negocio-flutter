@@ -115,7 +115,7 @@ class WelcomeScreen extends StatelessWidget {
                       top: -10,
                       right: 15,
                       child: Container(
-                        padding: const EdgeInsets.all(5),
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
@@ -127,11 +127,18 @@ class WelcomeScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                        child: Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png',
-                          height: 16,
-                          width: 18, // Forzamos ancho para evitar que se vea como texto
-                          fit: BoxFit.contain,
+                        child: ClipOval(
+                          child: Image.network(
+                            'https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png',
+                            height: 20,
+                            width: 20,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.google,
+                              size: 16,
+                              color: Colors.red,
+                            ),
+                          ),
                         ),
                       ),
                     ),
