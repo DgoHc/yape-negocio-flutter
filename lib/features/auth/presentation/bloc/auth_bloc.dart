@@ -255,11 +255,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onAdminLoginRequested(AdminLoginRequested event, Emitter<AuthState> emit) async {
+    AppLogger.d('AuthBloc: Intentando login de admin para ${event.username}');
     emit(state.copyWith(status: AuthStatus.loading));
     final result = await _loginAdminUseCase(event.username, event.pin);
     result.fold(
-      (failure) => emit(state.copyWith(status: AuthStatus.unauthenticated, error: failure.message)),
-      (token) => add(const AppStarted()),
+      (failure) {
+        AppLogger.e('AuthBloc: Error en login de admin: ${failure.message}');
+        emit(state.copyWith(status: AuthStatus.unauthenticated, error: failure.message));
+      },
+      (token) {
+        AppLogger.i('AuthBloc: Login de admin exitoso');
+        add(const AppStarted());
+      },
     );
   }
 

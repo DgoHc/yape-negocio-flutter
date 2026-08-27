@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yape_negocios/features/notifications/domain/parsers/payment_parser.dart';
+import 'package:sonopay/features/notifications/domain/parsers/payment_parser.dart';
 
 void main() {
   group('PaymentParser Unit Tests', () {

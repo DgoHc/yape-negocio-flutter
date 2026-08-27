@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/widgets/yt_design_system.dart';
 import '../../../notifications/domain/entities/payment_data.dart';
 import '../bloc/payments_bloc.dart';
-import '../../../../core/theme/app_theme.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
   const PaymentHistoryScreen({super.key});

@@ -227,7 +227,9 @@ class PaymentRepositoryImpl implements PaymentRepository {
 
           await localDataSource.markAsSynced(externalId);
           await syncDao.deleteSynced(entry.id);
-        } catch (e) {}
+        } catch (e) {
+          AppLogger.e('Failed to sync payment in background loop', e);
+        }
       }
       return const Right(null);
     } catch (e) {

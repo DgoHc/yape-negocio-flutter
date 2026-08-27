@@ -93,7 +93,7 @@ class _BusinessTypeFormState extends State<_BusinessTypeForm> {
                 ),
                 filled: true,
               ),
-              value: _selectedBusinessType,
+              initialValue: _selectedBusinessType,
               items: _businessTypes.map((type) {
                 return DropdownMenuItem(
                   value: type,

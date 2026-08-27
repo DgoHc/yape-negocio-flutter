@@ -18,19 +18,19 @@ class PaymentParser {
   /// Lista de regex para diferentes formatos de Yape (Personal, Negocios, etc.)
   static final List<RegExp> _incomingPaymentRegexes = [
     // Formato Negocios: ¡Te yapearon! Juan Perez - S/ 10.00
-    RegExp(r"¡?Te\s+yapearon!?\s+(.+?)\s*[-–]\s*(?:S/|PEN|S\./)\s*([\d,.]+)", caseSensitive: false),
+    RegExp(r"¡?Te\s+yapearon!?\s+(.+?)\s*[-–]\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     // Formato 1: [Nombre] te envió un pago por S/ [Monto]
-    RegExp(r"(.+?)\s+te\s+envió\s+un\s+pago\s+por\s+(S/|PEN|S\./)\s*([\d,.]+)", caseSensitive: false),
+    RegExp(r"(.+?)\s+te\s+envió\s+un\s+pago\s+por\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     // Formato 2: ¡Recibiste un Yape! [Nombre] te envió (S/|PEN) [Monto]
-    RegExp(r"¡?Recibiste\s+un\s+Yape!?\s+(.+?)\s+te\s+envió\s+(S/|PEN|S\./)\s*([\d,.]+)", caseSensitive: false),
+    RegExp(r"¡?Recibiste\s+un\s+Yape!?\s+(.+?)\s+te\s+envió\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     // Formato 3: [Nombre] te yapeó S/ [Monto]
-    RegExp(r"(.+?)\s+te\s+yapeó\s+(S/|PEN|S\./)\s*([\d,.]+)", caseSensitive: false),
+    RegExp(r"(.+?)\s+te\s+yapeó\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     // Formato 4: Nuevo pago de [Nombre] por (S/|PEN) [Monto]
-    RegExp(r"Nuevo\s+pago\s+de\s+(.+?)\s+por\s+(S/|PEN|S\./)\s*([\d,.]+)", caseSensitive: false),
+    RegExp(r"Nuevo\s+pago\s+de\s+(.+?)\s+por\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     // Formato 5: Has recibido (S/|PEN) [Monto] de [Nombre]
-    RegExp(r"Has\s+recibido\s+(S/|PEN|S\./)\s*([\d,.]+)\s+de\s+(.+)", caseSensitive: false),
+    RegExp(r"Has\s+recibido\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+de\s+(.+)", caseSensitive: false),
     // Formato Directo: [Nombre] - S/ [Monto]
-    RegExp(r"^(.+?)\s*[-–]\s*(?:S/|PEN|S\./)\s*([\d,.]+)$", caseSensitive: false),
+    RegExp(r"^(.+?)\s*[-–]\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)$", caseSensitive: false),
   ];
 
   static Either<Failure, PaymentData> parse(String raw) {
@@ -40,7 +40,7 @@ class PaymentParser {
       return const Left(ServerFailure('Texto vacío'));
     }
 
-    // Normalización del texto
+    // Normalización del texto (convertir saltos de línea a espacios)
     final cleanRaw = raw.replaceAll(RegExp(r'[\r\n|]+'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
     
     String? senderName;
@@ -53,17 +53,17 @@ class PaymentParser {
       if (match != null) {
         if (regex.pattern.contains('Has\\\\s+recibido')) {
           currency = match.group(1)?.trim() ?? "S/";
-          final amountStr = match.group(2)?.replaceAll(RegExp(r'[^0-9.]'), '').trim() ?? "0";
+          final amountStr = match.group(2)?.replaceAll(',', '.').trim() ?? "0";
           amount = double.tryParse(amountStr);
           senderName = match.group(3)?.trim();
         } else {
           senderName = match.group(1)?.trim();
-          if (match.groupCount >= 3) {
-            currency = match.group(2)?.trim() ?? "S/";
-            final amountStr = match.group(3)?.replaceAll(RegExp(r'[^0-9.]'), '').trim() ?? "0";
-            amount = double.tryParse(amountStr);
-          } else {
-            final amountStr = match.group(2)?.replaceAll(RegExp(r'[^0-9.]'), '').trim() ?? "0";
+          if (match.groupCount >= 2) {
+             // El monto suele ser el último grupo capturado
+            currency = (match.groupCount >= 3) ? match.group(2)?.trim() ?? "S/" : "S/";
+            final amountStr = (match.groupCount >= 3) 
+                ? match.group(3)?.replaceAll(',', '.').trim() ?? "0"
+                : match.group(2)?.replaceAll(',', '.').trim() ?? "0";
             amount = double.tryParse(amountStr);
           }
         }

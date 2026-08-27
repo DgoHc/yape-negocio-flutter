@@ -92,6 +92,7 @@ class SubscriptionScreen extends StatelessWidget {
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final profile = state.userProfile;
+                    // Detectar si ya usó la prueba: si trialEndDate no es nulo, significa que ya la activó alguna vez.
                     final hasUsedTrial = profile?.trialEndDate != null || profile?.isSubscribed == true;
 
                     return Column(

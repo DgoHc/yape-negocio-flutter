@@ -371,16 +371,6 @@ class _DashboardViewState extends State<DashboardView> with WidgetsBindingObserv
                 title: Text(title),
                 actions: [
                   IconButton(
-                    tooltip: 'Generar QR',
-                    icon: const Icon(Icons.qr_code_2_rounded),
-                    onPressed: () => _showDynamicQrDialog(context),
-                  ),
-                  IconButton(
-                    tooltip: 'Pegar Recibo',
-                    icon: const Icon(Icons.content_paste_rounded),
-                    onPressed: () => _showManualPasteDialog(context),
-                  ),
-                  IconButton(
                     tooltip: 'Exportar Excel',
                     icon: const Icon(Icons.download_rounded),
                     onPressed: () => _exportToExcel(context),
@@ -806,7 +796,7 @@ class _NotificationServiceStatus extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (!hasPermission)
+                            if (!active)
                               const Text(
                                 'Toca aquí para activar el permiso en Android',
                                 style: TextStyle(fontSize: 10, color: Colors.red),
