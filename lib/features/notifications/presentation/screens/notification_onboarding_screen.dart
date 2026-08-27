@@ -15,7 +15,6 @@ class NotificationOnboardingScreen extends StatefulWidget {
 class _NotificationOnboardingScreenState extends State<NotificationOnboardingScreen> with WidgetsBindingObserver {
   final _service = sl<NotificationPlatformService>();
   bool _isNotificationEnabled = false;
-  bool _isAccessibilityEnabled = false;
   bool _isLoading = true;
 
   @override
@@ -41,19 +40,17 @@ class _NotificationOnboardingScreenState extends State<NotificationOnboardingScr
   Future<void> _checkPermissions() async {
     setState(() => _isLoading = true);
     final notification = await _service.isNotificationPermissionGranted();
-    final accessibility = await _service.isAccessibilityServiceEnabled();
     
-    AppLogger.d('Permissions: Notification: $notification | Accessibility: $accessibility');
+    AppLogger.d('Permissions: Notification: $notification');
     
     if (mounted) {
       setState(() {
         _isNotificationEnabled = notification;
-        _isAccessibilityEnabled = accessibility;
         _isLoading = false;
       });
       
-      // Si ambos están activos, ya podemos ir al dashboard
-      if (notification && accessibility) {
+      // Si el permiso de notificación está activo, ya podemos ir al dashboard
+      if (notification) {
         context.go('/dashboard');
       }
     }
@@ -76,7 +73,7 @@ class _NotificationOnboardingScreenState extends State<NotificationOnboardingScr
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.security_update_good, size: 80, color: Color(0xFF7C4DFF)),
+            const Icon(Icons.notifications_active_rounded, size: 80, color: Color(0xFF7C4DFF)),
             const SizedBox(height: 32),
             const Text(
               'Activa SonoPay para Yape',
@@ -85,7 +82,7 @@ class _NotificationOnboardingScreenState extends State<NotificationOnboardingScr
             ),
             const SizedBox(height: 16),
             const Text(
-              'Para capturar pagos completos sin recortes, activa los siguientes permisos:',
+              'Para que SonoPay pueda detectar tus pagos automáticamente, necesitamos acceso a tus notificaciones.',
               style: TextStyle(fontSize: 16, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -94,31 +91,11 @@ class _NotificationOnboardingScreenState extends State<NotificationOnboardingScr
             // Permiso 1: Notificaciones
             _PermissionTile(
               title: 'Acceso a Notificaciones',
-              subtitle: 'Necesario para detectar el aviso de pago.',
+              subtitle: 'Necesario para detectar el aviso de pago en tiempo real.',
               isEnabled: _isNotificationEnabled,
               onTap: () => _service.openNotificationSettings(),
             ),
             
-            const SizedBox(height: 16),
-            
-            // Permiso 2: Accesibilidad
-            _PermissionTile(
-              title: 'Servicio de Scrapping',
-              subtitle: 'Necesario para capturar nombres completos.',
-              isEnabled: _isAccessibilityEnabled,
-              onTap: () => _service.openAccessibilitySettings(),
-            ),
-            
-            if (!_isAccessibilityEnabled)
-              const Padding(
-                padding: EdgeInsets.only(top: 8.0),
-                child: Text(
-                  '💡 Si el botón está bloqueado: Ve a Información de la app > 3 puntos (⋮) > Permitir ajustes restringidos.',
-                  style: TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-
             const Spacer(),
             
             YtButton(

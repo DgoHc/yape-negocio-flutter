@@ -38,11 +38,6 @@ class MainActivity : FlutterActivity() {
                     startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
                     result.success(null)
                 }
-                "isAccessibilityServiceEnabled" -> result.success(isAccessibilityServiceEnabled())
-                "openAccessibilitySettings" -> {
-                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    result.success(null)
-                }
                 else -> result.notImplemented()
             }
         }
@@ -61,11 +56,6 @@ class MainActivity : FlutterActivity() {
 
     private fun isNotificationServiceEnabled(): Boolean {
         val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
-        return flat?.contains(packageName) == true
-    }
-
-    private fun isAccessibilityServiceEnabled(): Boolean {
-        val flat = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
         return flat?.contains(packageName) == true
     }
 }
