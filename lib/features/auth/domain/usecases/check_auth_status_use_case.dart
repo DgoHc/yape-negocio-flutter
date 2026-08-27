@@ -25,24 +25,32 @@ class CheckAuthStatusUseCase implements UseCase<CheckAuthStatusResult, NoParams>
     final deviceIdEither = await _getDeviceIdUseCase(params);
     final String? deviceId = await deviceIdEither.fold((_) => null, (id) => id);
 
-    // 1. Verificar si hay un Token válido y el Rol asociado
+    // 1. Verificar si hay un Token válido
     final hasValidToken = await _tokenManager.isTokenValid();
-    if (hasValidToken) {
-      final role = await _tokenManager.getUserRole();
-      
-      // Si el rol es administrativo, devolvemos authenticatedAdmin
-      if (role == 'ADMIN' || role == 'SUPER_ADMIN' || role == 'SUPERVISOR') {
-        final profile = await _userProfileRepository.getProfile();
-        return Right(CheckAuthStatusResult(
-          status: AuthStatusResult.authenticatedAdmin,
-          userRole: role,
-          deviceId: deviceId,
-          userProfile: profile,
-        ));
-      }
+    if (!hasValidToken) {
+      final profile = await _userProfileRepository.getProfile();
+      final errorMsg = profile != null ? 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.' : null;
+      return Right(CheckAuthStatusResult(
+        status: AuthStatusResult.unauthenticated,
+        error: errorMsg,
+        deviceId: deviceId,
+      ));
     }
 
-    // 2. Si no es admin o no hay token de admin, verificar perfil local (Conductor)
+    final role = await _tokenManager.getUserRole();
+    
+    // Si el rol es administrativo, devolvemos authenticatedAdmin
+    if (role == 'ADMIN' || role == 'SUPER_ADMIN' || role == 'SUPERVISOR') {
+      final profile = await _userProfileRepository.getProfile();
+      return Right(CheckAuthStatusResult(
+        status: AuthStatusResult.authenticatedAdmin,
+        userRole: role,
+        deviceId: deviceId,
+        userProfile: profile,
+      ));
+    }
+
+    // 2. Si no es admin, verificar perfil local (Conductor)
     final profile = await _userProfileRepository.getProfile();
 
     if (profile == null) {

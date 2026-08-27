@@ -93,6 +93,28 @@ class $PaymentsTableTable extends PaymentsTable
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _operationNumberMeta = const VerificationMeta(
+    'operationNumber',
+  );
+  @override
+  late final GeneratedColumn<String> operationNumber = GeneratedColumn<String>(
+    'operation_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rawTextMeta = const VerificationMeta(
+    'rawText',
+  );
+  @override
+  late final GeneratedColumn<String> rawText = GeneratedColumn<String>(
+    'raw_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -102,6 +124,8 @@ class $PaymentsTableTable extends PaymentsTable
     senderName,
     createdAt,
     isSynced,
+    operationNumber,
+    rawText,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -160,6 +184,21 @@ class $PaymentsTableTable extends PaymentsTable
         isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
       );
     }
+    if (data.containsKey('operation_number')) {
+      context.handle(
+        _operationNumberMeta,
+        operationNumber.isAcceptableOrUnknown(
+          data['operation_number']!,
+          _operationNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('raw_text')) {
+      context.handle(
+        _rawTextMeta,
+        rawText.isAcceptableOrUnknown(data['raw_text']!, _rawTextMeta),
+      );
+    }
     return context;
   }
 
@@ -197,6 +236,14 @@ class $PaymentsTableTable extends PaymentsTable
         DriftSqlType.bool,
         data['${effectivePrefix}is_synced'],
       )!,
+      operationNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}operation_number'],
+      ),
+      rawText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}raw_text'],
+      ),
     );
   }
 
@@ -214,6 +261,8 @@ class Payment extends DataClass implements Insertable<Payment> {
   final String senderName;
   final DateTime createdAt;
   final bool isSynced;
+  final String? operationNumber;
+  final String? rawText;
   const Payment({
     required this.id,
     required this.externalId,
@@ -222,6 +271,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     required this.senderName,
     required this.createdAt,
     required this.isSynced,
+    this.operationNumber,
+    this.rawText,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -233,6 +284,12 @@ class Payment extends DataClass implements Insertable<Payment> {
     map['sender_name'] = Variable<String>(senderName);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || operationNumber != null) {
+      map['operation_number'] = Variable<String>(operationNumber);
+    }
+    if (!nullToAbsent || rawText != null) {
+      map['raw_text'] = Variable<String>(rawText);
+    }
     return map;
   }
 
@@ -245,6 +302,12 @@ class Payment extends DataClass implements Insertable<Payment> {
       senderName: Value(senderName),
       createdAt: Value(createdAt),
       isSynced: Value(isSynced),
+      operationNumber: operationNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(operationNumber),
+      rawText: rawText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rawText),
     );
   }
 
@@ -261,6 +324,8 @@ class Payment extends DataClass implements Insertable<Payment> {
       senderName: serializer.fromJson<String>(json['senderName']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      operationNumber: serializer.fromJson<String?>(json['operationNumber']),
+      rawText: serializer.fromJson<String?>(json['rawText']),
     );
   }
   @override
@@ -274,6 +339,8 @@ class Payment extends DataClass implements Insertable<Payment> {
       'senderName': serializer.toJson<String>(senderName),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'operationNumber': serializer.toJson<String?>(operationNumber),
+      'rawText': serializer.toJson<String?>(rawText),
     };
   }
 
@@ -285,6 +352,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     String? senderName,
     DateTime? createdAt,
     bool? isSynced,
+    Value<String?> operationNumber = const Value.absent(),
+    Value<String?> rawText = const Value.absent(),
   }) => Payment(
     id: id ?? this.id,
     externalId: externalId ?? this.externalId,
@@ -293,6 +362,10 @@ class Payment extends DataClass implements Insertable<Payment> {
     senderName: senderName ?? this.senderName,
     createdAt: createdAt ?? this.createdAt,
     isSynced: isSynced ?? this.isSynced,
+    operationNumber: operationNumber.present
+        ? operationNumber.value
+        : this.operationNumber,
+    rawText: rawText.present ? rawText.value : this.rawText,
   );
   Payment copyWithCompanion(PaymentsTableCompanion data) {
     return Payment(
@@ -307,6 +380,10 @@ class Payment extends DataClass implements Insertable<Payment> {
           : this.senderName,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      operationNumber: data.operationNumber.present
+          ? data.operationNumber.value
+          : this.operationNumber,
+      rawText: data.rawText.present ? data.rawText.value : this.rawText,
     );
   }
 
@@ -319,7 +396,9 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('currency: $currency, ')
           ..write('senderName: $senderName, ')
           ..write('createdAt: $createdAt, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('operationNumber: $operationNumber, ')
+          ..write('rawText: $rawText')
           ..write(')'))
         .toString();
   }
@@ -333,6 +412,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     senderName,
     createdAt,
     isSynced,
+    operationNumber,
+    rawText,
   );
   @override
   bool operator ==(Object other) =>
@@ -344,7 +425,9 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.currency == this.currency &&
           other.senderName == this.senderName &&
           other.createdAt == this.createdAt &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.operationNumber == this.operationNumber &&
+          other.rawText == this.rawText);
 }
 
 class PaymentsTableCompanion extends UpdateCompanion<Payment> {
@@ -355,6 +438,8 @@ class PaymentsTableCompanion extends UpdateCompanion<Payment> {
   final Value<String> senderName;
   final Value<DateTime> createdAt;
   final Value<bool> isSynced;
+  final Value<String?> operationNumber;
+  final Value<String?> rawText;
   const PaymentsTableCompanion({
     this.id = const Value.absent(),
     this.externalId = const Value.absent(),
@@ -363,6 +448,8 @@ class PaymentsTableCompanion extends UpdateCompanion<Payment> {
     this.senderName = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.operationNumber = const Value.absent(),
+    this.rawText = const Value.absent(),
   });
   PaymentsTableCompanion.insert({
     this.id = const Value.absent(),
@@ -372,6 +459,8 @@ class PaymentsTableCompanion extends UpdateCompanion<Payment> {
     required String senderName,
     this.createdAt = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.operationNumber = const Value.absent(),
+    this.rawText = const Value.absent(),
   }) : externalId = Value(externalId),
        amount = Value(amount),
        senderName = Value(senderName);
@@ -383,6 +472,8 @@ class PaymentsTableCompanion extends UpdateCompanion<Payment> {
     Expression<String>? senderName,
     Expression<DateTime>? createdAt,
     Expression<bool>? isSynced,
+    Expression<String>? operationNumber,
+    Expression<String>? rawText,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -392,6 +483,8 @@ class PaymentsTableCompanion extends UpdateCompanion<Payment> {
       if (senderName != null) 'sender_name': senderName,
       if (createdAt != null) 'created_at': createdAt,
       if (isSynced != null) 'is_synced': isSynced,
+      if (operationNumber != null) 'operation_number': operationNumber,
+      if (rawText != null) 'raw_text': rawText,
     });
   }
 
@@ -403,6 +496,8 @@ class PaymentsTableCompanion extends UpdateCompanion<Payment> {
     Value<String>? senderName,
     Value<DateTime>? createdAt,
     Value<bool>? isSynced,
+    Value<String?>? operationNumber,
+    Value<String?>? rawText,
   }) {
     return PaymentsTableCompanion(
       id: id ?? this.id,
@@ -412,6 +507,8 @@ class PaymentsTableCompanion extends UpdateCompanion<Payment> {
       senderName: senderName ?? this.senderName,
       createdAt: createdAt ?? this.createdAt,
       isSynced: isSynced ?? this.isSynced,
+      operationNumber: operationNumber ?? this.operationNumber,
+      rawText: rawText ?? this.rawText,
     );
   }
 
@@ -439,6 +536,12 @@ class PaymentsTableCompanion extends UpdateCompanion<Payment> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (operationNumber.present) {
+      map['operation_number'] = Variable<String>(operationNumber.value);
+    }
+    if (rawText.present) {
+      map['raw_text'] = Variable<String>(rawText.value);
+    }
     return map;
   }
 
@@ -451,7 +554,9 @@ class PaymentsTableCompanion extends UpdateCompanion<Payment> {
           ..write('currency: $currency, ')
           ..write('senderName: $senderName, ')
           ..write('createdAt: $createdAt, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('operationNumber: $operationNumber, ')
+          ..write('rawText: $rawText')
           ..write(')'))
         .toString();
   }
@@ -2528,6 +2633,8 @@ typedef $$PaymentsTableTableCreateCompanionBuilder =
       required String senderName,
       Value<DateTime> createdAt,
       Value<bool> isSynced,
+      Value<String?> operationNumber,
+      Value<String?> rawText,
     });
 typedef $$PaymentsTableTableUpdateCompanionBuilder =
     PaymentsTableCompanion Function({
@@ -2538,6 +2645,8 @@ typedef $$PaymentsTableTableUpdateCompanionBuilder =
       Value<String> senderName,
       Value<DateTime> createdAt,
       Value<bool> isSynced,
+      Value<String?> operationNumber,
+      Value<String?> rawText,
     });
 
 class $$PaymentsTableTableFilterComposer
@@ -2581,6 +2690,16 @@ class $$PaymentsTableTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
     column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get operationNumber => $composableBuilder(
+    column: $table.operationNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rawText => $composableBuilder(
+    column: $table.rawText,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2628,6 +2747,16 @@ class $$PaymentsTableTableOrderingComposer
     column: $table.isSynced,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get operationNumber => $composableBuilder(
+    column: $table.operationNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rawText => $composableBuilder(
+    column: $table.rawText,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PaymentsTableTableAnnotationComposer
@@ -2663,6 +2792,14 @@ class $$PaymentsTableTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get operationNumber => $composableBuilder(
+    column: $table.operationNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get rawText =>
+      $composableBuilder(column: $table.rawText, builder: (column) => column);
 }
 
 class $$PaymentsTableTableTableManager
@@ -2703,6 +2840,8 @@ class $$PaymentsTableTableTableManager
                 Value<String> senderName = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
+                Value<String?> operationNumber = const Value.absent(),
+                Value<String?> rawText = const Value.absent(),
               }) => PaymentsTableCompanion(
                 id: id,
                 externalId: externalId,
@@ -2711,6 +2850,8 @@ class $$PaymentsTableTableTableManager
                 senderName: senderName,
                 createdAt: createdAt,
                 isSynced: isSynced,
+                operationNumber: operationNumber,
+                rawText: rawText,
               ),
           createCompanionCallback:
               ({
@@ -2721,6 +2862,8 @@ class $$PaymentsTableTableTableManager
                 required String senderName,
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
+                Value<String?> operationNumber = const Value.absent(),
+                Value<String?> rawText = const Value.absent(),
               }) => PaymentsTableCompanion.insert(
                 id: id,
                 externalId: externalId,
@@ -2729,6 +2872,8 @@ class $$PaymentsTableTableTableManager
                 senderName: senderName,
                 createdAt: createdAt,
                 isSynced: isSynced,
+                operationNumber: operationNumber,
+                rawText: rawText,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

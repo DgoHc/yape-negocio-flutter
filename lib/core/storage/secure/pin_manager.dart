@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:injectable/injectable.dart';
@@ -13,10 +14,16 @@ class PinManager {
   PinManager(this._storage);
 
   Future<void> savePin(String pin) async {
-    final salt = DateTime.now().toIso8601String();
+    final salt = _generateSecureSalt();
     final hashedPin = _hashPin(pin, salt);
     await _storage.write(key: _pinKey, value: '$hashedPin:$salt');
     await _resetAttempts();
+  }
+
+  String _generateSecureSalt() {
+    final random = Random.secure();
+    final values = List<int>.generate(16, (i) => random.nextInt(256));
+    return base64Url.encode(values);
   }
 
   Future<bool> verifyPin(String pin) async {

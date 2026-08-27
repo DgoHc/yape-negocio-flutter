@@ -57,4 +57,22 @@ class NotificationPlatformService {
       AppLogger.e('Error opening notification settings', e);
     }
   }
+
+  Future<bool> isAccessibilityServiceEnabled() async {
+    try {
+      final bool isEnabled = await _methodChannel.invokeMethod('isAccessibilityServiceEnabled');
+      return isEnabled;
+    } on PlatformException catch (e) {
+      AppLogger.e('Error checking accessibility service', e);
+      return false;
+    }
+  }
+
+  Future<void> openAccessibilitySettings() async {
+    try {
+      await _methodChannel.invokeMethod('openAccessibilitySettings');
+    } on PlatformException catch (e) {
+      AppLogger.e('Error opening accessibility settings', e);
+    }
+  }
 }

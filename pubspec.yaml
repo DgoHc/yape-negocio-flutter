@@ -1,5 +1,5 @@
-name: yape_negocios
-description: "Aplicación de detección de pagos Yape para negocios locales."
+name: sonopay
+description: "Gestión inteligente de notificaciones de pago por voz para negocios."
 publish_to: 'none'
 
 version: 1.4.0+5

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Permite a SonoPay leer los datos de pago directamente desde la pantalla de Yape para evitar recortes de información.</string>
+</resources>

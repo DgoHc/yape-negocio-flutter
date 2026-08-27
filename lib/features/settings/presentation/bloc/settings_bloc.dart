@@ -72,6 +72,14 @@ class ToggleMute extends SettingsEvent {
 
 class LoadControlSettings extends SettingsEvent {}
 
+class UpdateRetentionDays extends SettingsEvent {
+  final int days;
+  UpdateRetentionDays(this.days);
+
+  @override
+  List<Object?> get props => [days];
+}
+
 // States
 class SettingsState extends Equatable {
   final List<SecondaryNumbersTableData> secondaryNumbers;
@@ -82,6 +90,7 @@ class SettingsState extends Equatable {
   final bool isDetectionEnabled;
   final double volume;
   final bool isMuted;
+  final int retentionDays;
 
   const SettingsState({
     this.secondaryNumbers = const [],
@@ -92,6 +101,7 @@ class SettingsState extends Equatable {
     this.isDetectionEnabled = true,
     this.volume = 1.0,
     this.isMuted = false,
+    this.retentionDays = 30,
   });
 
   SettingsState copyWith({
@@ -103,6 +113,7 @@ class SettingsState extends Equatable {
     bool? isDetectionEnabled,
     double? volume,
     bool? isMuted,
+    int? retentionDays,
   }) {
     return SettingsState(
       secondaryNumbers: secondaryNumbers ?? this.secondaryNumbers,
@@ -113,6 +124,7 @@ class SettingsState extends Equatable {
       isDetectionEnabled: isDetectionEnabled ?? this.isDetectionEnabled,
       volume: volume ?? this.volume,
       isMuted: isMuted ?? this.isMuted,
+      retentionDays: retentionDays ?? this.retentionDays,
     );
   }
 
@@ -126,6 +138,7 @@ class SettingsState extends Equatable {
         isDetectionEnabled,
         volume,
         isMuted,
+        retentionDays,
       ];
 }
 
@@ -154,12 +167,19 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdateVolume>(_onUpdateVolume);
     on<ToggleMute>(_onToggleMute);
     on<LoadControlSettings>(_onLoadControlSettings);
+    on<UpdateRetentionDays>(_onUpdateRetentionDays);
+  }
+
+  Future<void> _onUpdateRetentionDays(UpdateRetentionDays event, Emitter<SettingsState> emit) async {
+    await _prefs.setInt('history_retention_days', event.days);
+    emit(state.copyWith(retentionDays: event.days));
   }
 
   Future<void> _onLoadControlSettings(LoadControlSettings event, Emitter<SettingsState> emit) async {
     final isEnabled = _prefs.getBool('detection_enabled') ?? true;
     final vol = _prefs.getDouble('notification_volume') ?? 1.0;
     final muted = _prefs.getBool('is_muted') ?? false;
+    final retention = _prefs.getInt('history_retention_days') ?? 30;
 
     await _ttsService.setVolume(vol);
     
@@ -167,6 +187,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       isDetectionEnabled: isEnabled,
       volume: vol,
       isMuted: muted,
+      retentionDays: retention,
     ));
   }
 

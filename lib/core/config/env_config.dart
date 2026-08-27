@@ -17,11 +17,10 @@ class EnvConfig {
   static String get baseUrl {
     switch (environment) {
       case Environment.prod:
-        return 'https://api.yape.pe/v1';
+        return 'http://104.248.230.19:3000/api';
       case Environment.qa:
         return 'https://qa-api.yape.pe/v1';
       case Environment.dev:
-
         return 'http://192.168.100.6:3000/api';
     }
   }

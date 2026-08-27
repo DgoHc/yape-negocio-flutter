@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
-        <!-- Allow cleartext for local development IP -->
+        <!-- Allow cleartext for production and local development IPs -->
+        <domain includeSubdomains="true">104.248.230.19</domain>
         <domain includeSubdomains="true">192.168.100.6</domain>
+        <domain includeSubdomains="true">192.168.100.13</domain>
         <domain includeSubdomains="true">10.0.2.2</domain> <!-- Android Emulator -->
     </domain-config>
     <base-config cleartextTrafficPermitted="false">

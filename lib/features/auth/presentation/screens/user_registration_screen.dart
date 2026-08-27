@@ -21,6 +21,13 @@ class UserRegistrationScreen extends StatelessWidget {
         listener: (context, state) {
           if (state.status == AuthStatus.needsSubscription) {
             context.go('/subscription');
+          } else if (state.status == AuthStatus.needsVerification) {
+            context.go('/verify-email');
+          } else if (state.error != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.error!), backgroundColor: Colors.red),
+            );
+            context.read<AuthBloc>().add(const ClearError());
           }
         },
         child: const SafeArea(

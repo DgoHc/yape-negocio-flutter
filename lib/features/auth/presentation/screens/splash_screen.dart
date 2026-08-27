@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/di/injection_container.dart';
 import '../bloc/auth_bloc.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -31,13 +33,25 @@ class _SplashScreenState extends State<SplashScreen> {
           case AuthStatus.needsRegistration:
             context.go('/register');
             break;
+          case AuthStatus.needsPairing:
+            context.go('/pair-device');
+            break;
+          case AuthStatus.needsVerification:
+            context.go('/verify-email');
+            break;
           case AuthStatus.noAccess:
           case AuthStatus.needsSubscription:
             context.go('/subscription');
             break;
           case AuthStatus.unauthenticated:
           case AuthStatus.initial:
-            context.go('/');
+            final prefs = sl<SharedPreferences>();
+            final seenOnboarding = prefs.getBool('seen_onboarding') ?? false;
+            if (seenOnboarding) {
+              context.go('/');
+            } else {
+              context.go('/onboarding');
+            }
             break;
           default:
             break;
@@ -50,13 +64,13 @@ class _SplashScreenState extends State<SplashScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(
-                Icons.directions_bus,
+                Icons.payments,
                 size: 100,
                 color: Colors.white,
               ),
               const SizedBox(height: 24),
               const Text(
-                'YAPE TRANSPORTE',
+                'SONOPAY',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,

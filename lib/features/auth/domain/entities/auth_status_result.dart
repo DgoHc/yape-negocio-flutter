@@ -7,6 +7,7 @@ enum AuthStatusResult {
   authenticatedDriver,
   unauthenticated,
   needsSubscription,
+  needsPairing,
   noAccess,
 }
 

@@ -17,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -25,31 +25,29 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
         },
         onUpgrade: (m, from, to) async {
-          // Implementación acumulativa v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7
           if (from < 2) {
             await m.createTable(userProfilesTable);
           }
           if (from < 3) {
-            // v3: Agregar uuid a userProfilesTable
             await m.addColumn(userProfilesTable, userProfilesTable.uuid);
           }
           if (from < 4) {
-            // v4: Cambiar id a text nullable
             await m.deleteTable(userProfilesTable.actualTableName);
             await m.createTable(userProfilesTable);
           }
           if (from < 5) {
-            // v5: Agregar localId como PK y unique constraint a id
             await m.deleteTable(userProfilesTable.actualTableName);
             await m.createTable(userProfilesTable);
           }
           if (from < 6) {
-            // v6: Agregar businessType a userProfilesTable
             await m.addColumn(userProfilesTable, userProfilesTable.businessType);
           }
           if (from < 7) {
-            // v7: Agregar notificationCode a userProfilesTable
             await m.addColumn(userProfilesTable, userProfilesTable.notificationCode);
+          }
+          if (from < 8) {
+            await m.addColumn(paymentsTable, paymentsTable.operationNumber);
+            await m.addColumn(paymentsTable, paymentsTable.rawText);
           }
         },
       );
@@ -66,6 +64,11 @@ class PaymentDao extends DatabaseAccessor<AppDatabase> with _$PaymentDaoMixin {
   Future<int> markAsSynced(String externalId) => 
       (update(paymentsTable)..where((t) => t.externalId.equals(externalId)))
           .write(const PaymentsTableCompanion(isSynced: Value(true)));
+  
+  Future<int> deleteOldPayments(DateTime before) =>
+      (delete(paymentsTable)..where((t) => t.createdAt.isSmallerThanValue(before))).go();
+
+  Future<void> deleteAllPayments() => delete(paymentsTable).go();
 }
 
 @DriftAccessor(tables: [DevicesTable])

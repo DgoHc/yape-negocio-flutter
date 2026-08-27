@@ -17,3 +17,6 @@
 
 # Workmanager rules
 -keep class com.google.common.util.concurrent.ListenableFuture { *; }
+
+# Fix for Missing classes from com.google.android.play.core
+-dontwarn com.google.android.play.core.**

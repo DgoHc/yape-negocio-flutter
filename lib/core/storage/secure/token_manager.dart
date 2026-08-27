@@ -15,7 +15,13 @@ class TokenManager {
   }
 
   Future<String?> getToken() async {
-    return await _storage.read(key: _tokenKey);
+    try {
+      return await _storage.read(key: _tokenKey);
+    } catch (e) {
+      AppLogger.e('Error reading secure token (possible BAD_DECRYPT). Clearing token.', e);
+      await deleteToken();
+      return null;
+    }
   }
 
   Future<bool> isTokenValid() async {

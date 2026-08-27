@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/network/network_error_handler.dart';
 import '../dtos/payment_dto.dart';
 
 abstract class PaymentRemoteDataSource {
@@ -25,8 +26,10 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
       );
 
       return Right(PaymentDto.fromJson(response.data));
+    } on DioException catch (e) {
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -37,8 +40,10 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
       final List<dynamic> data = response.data;
       final List<PaymentDto> payments = data.map((json) => PaymentDto.fromJson(json)).toList();
       return Right(payments);
+    } on DioException catch (e) {
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 }

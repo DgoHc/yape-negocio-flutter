@@ -3,12 +3,14 @@ import 'package:drift/drift.dart';
 @DataClassName('Payment')
 class PaymentsTable extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get externalId => text().unique()(); // ID de Yape
+  TextColumn get externalId => text().unique()(); // ID único generado
   RealColumn get amount => real()();
   TextColumn get currency => text().withDefault(const Constant('S/'))();
   TextColumn get senderName => text()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  TextColumn get operationNumber => text().nullable()(); // Número de operación extraído
+  TextColumn get rawText => text().nullable()(); // Texto original de la notificación
 }
 
 @DataClassName('Device')

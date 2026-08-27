@@ -48,15 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.error!), backgroundColor: Colors.red),
           );
+          context.read<AuthBloc>().add(ClearError());
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor),
+            icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.primary),
             onPressed: () => context.go('/'),
           ),
         ),
@@ -68,18 +68,18 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 40),
-                const Icon(
-                  Icons.directions_bus,
+                Icon(
+                  Icons.directions_bus_filled_rounded,
                   size: 80,
-                  color: AppTheme.primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(height: 32),
-                const Text(
+                Text(
                   'Iniciar Sesión',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
                   ),
                   textAlign: TextAlign.center,
                 ),

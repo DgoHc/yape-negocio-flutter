@@ -1,12 +1,14 @@
 
 import 'package:flutter/material.dart' hide Border;
 import 'package:flutter/material.dart' as flutter show Border;
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/yt_design_system.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/clipboard_payment_detector.dart';
+import '../../../../features/notifications/domain/parsers/payment_parser.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../payments/presentation/bloc/payments_bloc.dart';
 import '../../../notifications/data/notification_platform_service.dart';
@@ -21,43 +23,79 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(create: (context) => sl<PaymentsBloc>()..add(LoadPayments())),
-        BlocProvider(create: (context) => sl<NotificationBloc>()..add(GetLinkRequests())),
-      ],
+    return BlocProvider(
+      create: (context) => sl<NotificationBloc>()..add(GetLinkRequests()),
       child: const DashboardView(),
     );
   }
 }
 
-class DashboardView extends StatelessWidget {
+class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
+
+  @override
+  State<DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<DashboardView> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Verificar portapapeles al iniciar la pantalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkClipboard();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkClipboard();
+    }
+  }
+
+  void _checkClipboard() {
+    if (mounted) {
+      ClipboardPaymentDetector.checkClipboard(context);
+    }
+  }
 
   (IconData, String) _getBusinessIconAndTitle(String? businessType) {
     switch (businessType?.toLowerCase()) {
       case 'transporte':
-        return (Icons.local_taxi, 'Yape Transporte');
+        return (Icons.local_taxi, 'SonoPay Transporte');
       case 'librería':
       case 'libreria':
-        return (Icons.menu_book, 'Yape Librería');
+        return (Icons.menu_book, 'SonoPay Librería');
       case 'restaurante':
-        return (Icons.restaurant, 'Yape Restaurante');
+        return (Icons.restaurant, 'SonoPay Restaurante');
       case 'servicios':
-        return (Icons.build, 'Yape Servicios');
+        return (Icons.build, 'SonoPay Servicios');
       case 'comercio':
-        return (Icons.shop, 'Yape Comercio');
+        return (Icons.shop, 'SonoPay Comercio');
       default:
-        return (Icons.store, 'Yape Negocios');
+        return (Icons.store, 'SonoPay Negocios');
     }
   }
 
   Future<void> _exportToExcel(BuildContext context) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     final selection = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Exportar Historial'),
+        backgroundColor: isDark ? const Color(0xFF151026) : Colors.white,
+        title: const Text('Exportar Historial', style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text('Selecciona el rango de tiempo para el reporte Excel:'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, 'today'),
@@ -67,7 +105,7 @@ class DashboardView extends StatelessWidget {
             onPressed: () => Navigator.pop(context, 'month'),
             child: const Text('Este Mes'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(context, 'all'),
             child: const Text('Todo'),
           ),
@@ -97,10 +135,15 @@ class DashboardView extends StatelessWidget {
   }
 
   void _showLogoutDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Cerrar Sesión'),
+        backgroundColor: isDark ? const Color(0xFF151026) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Cerrar Sesión', style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text(
             '¿Estás seguro de que deseas salir? El dispositivo se desvinculará y deberá ser aprobado nuevamente para volver a entrar.'),
         actions: [
@@ -110,7 +153,7 @@ class DashboardView extends StatelessWidget {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, foregroundColor: Colors.white),
+                backgroundColor: AppTheme.errorColor, foregroundColor: Colors.white),
             onPressed: () {
               context.read<AuthBloc>().add(LogoutRequested());
               Navigator.pop(dialogContext);
@@ -122,8 +165,199 @@ class DashboardView extends StatelessWidget {
     );
   }
 
+  void _showManualPasteDialog(BuildContext context) {
+    final controller = TextEditingController();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF151026) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Pegar Recibo de Pago', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Copia el texto del recibo de pago y pégalo aquí abajo para registrarlo automáticamente:',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Ej: ¡Yapeaste! o ¡Plineaste! S/ 5.00 a JUAN PEREZ. Nro. operación: 12345678...',
+                filled: true,
+                fillColor: isDark ? const Color(0xFF1B1437) : Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty) {
+                Navigator.pop(dialogContext);
+                final result = PaymentParser.parse(text);
+                result.fold(
+                  (failure) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Formato no reconocido: ${failure.message}'),
+                        backgroundColor: AppTheme.errorColor,
+                      ),
+                    );
+                  },
+                  (payment) {
+                    context.read<PaymentsBloc>().add(SaveManualPayment(payment));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Pago de ${payment.senderName} registrado con éxito'),
+                        backgroundColor: AppTheme.successColor,
+                      ),
+                    );
+                  },
+                );
+              }
+            },
+            child: const Text('Procesar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDynamicQrDialog(BuildContext context) {
+    final amountController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    bool generated = false;
+    double amount = 0.0;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF151026) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            title: Text(
+              generated ? 'Código QR de Cobro' : 'Generar Cobro QR',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!generated) ...[
+                    const Text(
+                      'Ingresa el monto que deseas cobrar para generar un código QR rápido.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                    const SizedBox(height: 16),
+                    YtTextField(
+                      controller: amountController,
+                      label: 'Monto (S/)',
+                      hintText: 'Ej. 3.50',
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      prefixIcon: Icons.payments_outlined,
+                      validator: (val) {
+                        if (val == null || val.isEmpty) return 'Ingresa un monto';
+                        final double? parsed = double.tryParse(val);
+                        if (parsed == null || parsed <= 0) return 'Monto inválido';
+                        return null;
+                      },
+                    ),
+                  ] else ...[
+                    const Text(
+                      'Muestra este código al cliente para que te pague directamente:',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: flutter.Border.all(color: const Color(0xFF7C4DFF).withValues(alpha: 0.15)),
+                      ),
+                      child: QrImageView(
+                        // Se simula la URL de Yape con el monto
+                        data: 'yape://pay?amount=$amount',
+                        version: QrVersions.auto,
+                        size: 200,
+                        gapless: false,
+                        eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: Color(0xFF7C4DFF),
+                        ),
+                        dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.circle,
+                          color: Color(0xFF151026),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'S/ ${amount.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF00E676)),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Una vez pagado, copia el recibo de pago para confirmarlo.',
+                      style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cerrar'),
+              ),
+              if (!generated)
+                ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState!.validate()) {
+                      setState(() {
+                        amount = double.parse(amountController.text);
+                        generated = true;
+                      });
+                    }
+                  },
+                  child: const Text('Generar QR'),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return BlocBuilder<PaymentsBloc, PaymentsState>(
       builder: (context, paymentsState) {
         return BlocBuilder<AuthBloc, AuthState>(
@@ -133,19 +367,30 @@ class DashboardView extends StatelessWidget {
 
             return Scaffold(
               appBar: AppBar(
-                leading: Icon(icon, color: Theme.of(context).colorScheme.onPrimary),
+                leading: Icon(icon, color: isDark ? Colors.white : AppTheme.primaryColor),
                 title: Text(title),
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.download),
+                    tooltip: 'Generar QR',
+                    icon: const Icon(Icons.qr_code_2_rounded),
+                    onPressed: () => _showDynamicQrDialog(context),
+                  ),
+                  IconButton(
+                    tooltip: 'Pegar Recibo',
+                    icon: const Icon(Icons.content_paste_rounded),
+                    onPressed: () => _showManualPasteDialog(context),
+                  ),
+                  IconButton(
+                    tooltip: 'Exportar Excel',
+                    icon: const Icon(Icons.download_rounded),
                     onPressed: () => _exportToExcel(context),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.settings),
+                    icon: const Icon(Icons.settings_suggest_rounded),
                     onPressed: () => context.push('/settings'),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.logout),
+                    icon: const Icon(Icons.logout_rounded),
                     onPressed: () => _showLogoutDialog(context),
                   ),
                 ],
@@ -175,41 +420,136 @@ class DashboardView extends StatelessWidget {
                             const _PendingLinkRequestsBanner(),
                             const SizedBox(height: 8),
                             const _NotificationServiceStatus(),
+                            
+                            // Muestra el total de hoy
                             const _TotalTodayCard(),
-                            const SizedBox(height: 24),
-                            const Text(
-                              'Pagos Recientes',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            
+                            const SizedBox(height: 28),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Pagos Recientes',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                ),
+                                TextButton(
+                                  onPressed: () => context.push('/payment-history'),
+                                  child: const Text('Ver historial'),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 8),
                             if (paymentsState.payments.isEmpty)
-                              const Center(child: Text('Aún no hay pagos registrados')),
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 40.0),
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.payment_outlined, size: 48, color: Colors.grey.withValues(alpha: 0.5)),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'Aún no hay pagos registrados',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ListView.separated(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              itemCount: paymentsState.payments.length,
+                              itemCount: paymentsState.payments.length > 5 ? 5 : paymentsState.payments.length, // Mostrar solo los 5 más recientes
                               separatorBuilder: (_, __) => const SizedBox(height: 12),
                               itemBuilder: (context, index) {
                                 final payment = paymentsState.payments[index];
+                                final initial = payment.senderName.isNotEmpty ? payment.senderName[0].toUpperCase() : '?';
+
                                 return YtCard(
-                                  child: ListTile(
-                                    leading: const CircleAvatar(
-                                      backgroundColor: Color(0xFF00BFA5),
-                                      child: Icon(Icons.attach_money, color: Colors.white),
-                                    ),
-                                    title: Text(payment.senderName),
-                                    subtitle: Text(
-                                      '${payment.parsedAt.hour}:${payment.parsedAt.minute.toString().padLeft(2, '0')}',
-                                    ),
-                                    trailing: Text(
-                                      '${payment.currency} ${payment.amount.toStringAsFixed(2)}',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        height: 48,
+                                        width: 48,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFF7C4DFF), Color(0xFF00E5FF)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFF7C4DFF).withValues(alpha: 0.3),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          initial,
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              payment.senderName,
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  '${payment.parsedAt.hour.toString().padLeft(2, '0')}:${payment.parsedAt.minute.toString().padLeft(2, '0')}',
+                                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                                ),
+                                                if (payment.operationNumber != null) ...[
+                                                  const SizedBox(width: 8),
+                                                  Container(width: 3, height: 3, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.grey.shade400)),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    'Op: ${payment.operationNumber}',
+                                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            '${payment.currency} ${payment.amount.toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 18,
+                                              color: Color(0xFF00C853),
+                                            ),
+                                          ),
+                                          const Text(
+                                            'Completado',
+                                            style: TextStyle(fontSize: 9, color: Color(0xFF00C853), fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 );
                               },
                             ),
-                            const SizedBox(height: 80), // Espacio para los FABs
+                            const SizedBox(height: 100), // Espacio para los FABs
                           ],
                         ),
                       ),
@@ -489,21 +829,31 @@ class _TotalTodayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final paymentsState = context.watch<PaymentsBloc>().state;
+
     return YtCard(
-      child: Column(
-        children: [
-          const Text('Total Hoy', style: TextStyle(fontSize: 16)),
-          const SizedBox(height: 8),
-          Text(
-            'S/ ${paymentsState.dailyTotal.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF00BFA5),
-            ),
+      gradientColors: isDark
+          ? [const Color(0xFF1F1147), const Color(0xFF0F0728)]
+          : [const Color(0xFF7C4DFF), const Color(0xFF6C2DFF)],
+      child: Center(
+        child: Text(
+          'S/ ${paymentsState.dailyTotal.toStringAsFixed(2)}',
+          style: const TextStyle(
+            fontSize: 38,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 1.0,
+            shadows: [
+              Shadow(
+                color: Color(0x4000E676),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

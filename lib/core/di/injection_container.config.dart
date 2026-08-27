@@ -262,14 +262,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i361.Dio>(),
       ),
     );
-    gh.factory<_i711.LogoutUseCase>(
-      () => _i711.LogoutUseCase(
-        gh<_i675.TokenManager>(),
-        gh<_i787.AuthRepository>(),
-        gh<_i784.DeviceRepository>(),
-        gh<_i335.DeviceInfoService>(),
-      ),
-    );
     gh.factory<_i506.ApproveDeviceUseCase>(
       () => _i506.ApproveDeviceUseCase(
         gh<_i787.AuthRepository>(),
@@ -314,6 +306,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i614.UpdateUserUseCase>(
       () => _i614.UpdateUserUseCase(gh<_i583.AdminRepository>()),
     );
+    gh.factory<_i711.LogoutUseCase>(
+      () => _i711.LogoutUseCase(
+        gh<_i675.TokenManager>(),
+        gh<_i787.AuthRepository>(),
+        gh<_i784.DeviceRepository>(),
+        gh<_i335.DeviceInfoService>(),
+        gh<_i723.AppDatabase>(),
+      ),
+    );
     gh.factory<_i367.NotificationRepository>(
       () => _i361.NotificationRepositoryImpl(
         gh<_i953.NotificationRemoteDataSource>(),
@@ -353,10 +354,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i78.ConnectivityBloc>(),
         gh<_i611.NotificationPlatformService>(),
         gh<_i27.TtsService>(),
+        gh<_i723.PaymentDao>(),
         gh<_i723.SecondaryNumberDao>(),
         gh<_i723.SyncDao>(),
         gh<_i723.UserProfileDao>(),
         gh<_i460.SharedPreferences>(),
+        gh<_i335.DeviceInfoService>(),
       ),
     );
     gh.lazySingleton<_i1063.CheckDeviceStatusUseCase>(
@@ -367,6 +370,14 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i100.RegisterDeviceUseCase>(
       () => _i100.RegisterDeviceUseCase(gh<_i787.AuthRepository>()),
+    );
+    gh.factory<_i511.PaymentsBloc>(
+      () => _i511.PaymentsBloc(
+        gh<_i315.PaymentRepository>(),
+        gh<_i997.ExportPaymentsUseCase>(),
+        gh<_i27.TtsService>(),
+        gh<_i460.SharedPreferences>(),
+      ),
     );
     gh.factory<_i876.NotificationBloc>(
       () => _i876.NotificationBloc(gh<_i367.NotificationRepository>()),
@@ -385,12 +396,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i787.AuthRepository>(),
       ),
     );
-    gh.factory<_i511.PaymentsBloc>(
-      () => _i511.PaymentsBloc(
-        gh<_i315.PaymentRepository>(),
-        gh<_i997.ExportPaymentsUseCase>(),
-      ),
-    );
     gh.factory<_i797.AuthBloc>(
       () => _i797.AuthBloc(
         gh<_i761.LoginAdminUseCase>(),
@@ -400,6 +405,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i813.ActivateSubscriptionUseCase>(),
         gh<_i489.CheckAuthStatusUseCase>(),
         gh<_i711.LogoutUseCase>(),
+        gh<_i506.ApproveDeviceUseCase>(),
         gh<_i750.GetDeviceIdUseCase>(),
         gh<_i659.UpdateProfileUseCase>(),
         gh<_i154.UserProfileRepository>(),

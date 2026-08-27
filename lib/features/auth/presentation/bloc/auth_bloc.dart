@@ -10,6 +10,7 @@ import '../../domain/usecases/start_trial_use_case.dart';
 import '../../domain/usecases/activate_subscription_use_case.dart';
 import '../../domain/usecases/check_auth_status_use_case.dart';
 import '../../domain/usecases/logout_use_case.dart';
+import '../../domain/usecases/approve_device_use_case.dart';
 import '../../domain/usecases/get_device_id_use_case.dart';
 import '../../domain/usecases/update_profile_use_case.dart';
 import '../../../../core/utils/app_logger.dart';
@@ -35,7 +36,11 @@ class AppStarted extends AuthEvent {
 }
 
 class LogoutRequested extends AuthEvent {
-  const LogoutRequested();
+  final String? message;
+  const LogoutRequested({this.message});
+
+  @override
+  List<Object?> get props => [message];
 }
 
 class AdminLoginRequested extends AuthEvent {
@@ -113,11 +118,15 @@ class StartTrial extends AuthEvent {
   const StartTrial();
 }
 
+class ClearError extends AuthEvent {
+  const ClearError();
+}
+
 class Subscribe extends AuthEvent {
   final PaymentProvider? provider;
   final double amount;
 
-  const Subscribe({this.provider, this.amount = 5.0});
+  const Subscribe({this.provider, required this.amount});
 
   @override
   List<Object?> get props => [provider, amount];
@@ -144,6 +153,7 @@ enum AuthStatus {
   authenticatedAdmin,
   authenticatedDriver,
   unauthenticated,
+  needsPairing,
   needsSubscription,
   needsRegistration,
   needsVerification,
@@ -203,6 +213,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final ActivateSubscriptionUseCase _activateSubscriptionUseCase;
   final CheckAuthStatusUseCase _checkAuthStatusUseCase;
   final LogoutUseCase _logoutUseCase;
+  final ApproveDeviceUseCase _approveDeviceUseCase;
   final GetDeviceIdUseCase _getDeviceIdUseCase;
   final UpdateProfileUseCase _updateProfileUseCase;
   final UserProfileRepository _userProfileRepository;
@@ -219,6 +230,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     this._activateSubscriptionUseCase,
     this._checkAuthStatusUseCase,
     this._logoutUseCase,
+    this._approveDeviceUseCase,
     this._getDeviceIdUseCase,
     this._updateProfileUseCase,
     this._userProfileRepository,
@@ -239,6 +251,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<StartTrial>(_onStartTrial);
     on<Subscribe>(_onSubscribe);
     on<UpdateProfile>(_onUpdateProfile);
+    on<ClearError>(_onClearError);
+  }
+
+  Future<void> _onAdminLoginRequested(AdminLoginRequested event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(status: AuthStatus.loading));
+    final result = await _loginAdminUseCase(event.username, event.pin);
+    result.fold(
+      (failure) => emit(state.copyWith(status: AuthStatus.unauthenticated, error: failure.message)),
+      (token) => add(const AppStarted()),
+    );
   }
 
   Future<void> _onCheckStatusRequested(CheckStatusRequested event, Emitter<AuthState> emit) async {
@@ -270,6 +292,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         break;
       case AuthStatusResult.authenticatedDriver:
         status = AuthStatus.authenticatedDriver;
+        break;
+      case AuthStatusResult.needsPairing:
+        status = AuthStatus.needsPairing;
         break;
       case AuthStatusResult.needsSubscription:
         status = AuthStatus.needsSubscription;
@@ -303,12 +328,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       ),
     );
 
-    await result.fold(
-      (failure) async => emit(state.copyWith(
+    result.fold(
+      (failure) => emit(state.copyWith(
         status: AuthStatus.unauthenticated,
         error: failure.message,
       )),
-      (data) async {
+      (data) {
         emit(state.copyWith(
           status: AuthStatus.needsVerification,
           userProfile: data.profile,
@@ -336,8 +361,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final profile = data.profile.copyWith(uuid: deviceId);
         await _userProfileRepository.saveProfile(profile);
 
+        if (deviceId != null) {
+          await _approveDeviceUseCase(ApproveDeviceParams(deviceId: deviceId));
+        }
+
+        AuthStatus nextStatus;
+        if (profile.businessType == null) {
+          nextStatus = AuthStatus.authenticatedDriver;
+        } else if (!profile.hasAccess) {
+          nextStatus = AuthStatus.needsSubscription;
+        } else {
+          nextStatus = AuthStatus.authenticatedDriver;
+        }
+
         emit(state.copyWith(
-          status: profile.hasAccess ? AuthStatus.authenticatedDriver : AuthStatus.needsSubscription,
+          status: nextStatus,
           userProfile: profile,
           deviceId: deviceId,
         ));
@@ -354,20 +392,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onStartTrial(StartTrial event, Emitter<AuthState> emit) async {
+    AppLogger.d('AuthBloc: Start trial requested');
     emit(state.copyWith(status: AuthStatus.loading, error: null));
     final result = await _startTrialUseCase(const NoParams());
 
     await result.fold(
-      (failure) async => emit(state.copyWith(
-        status: AuthStatus.needsSubscription,
-        error: failure.message,
-      )),
+      (failure) async {
+        AppLogger.e('AuthBloc: Start trial failed: ${failure.message}');
+        emit(state.copyWith(
+          status: AuthStatus.needsSubscription,
+          error: failure.message,
+        ));
+      },
       (profile) async {
+        AppLogger.d('AuthBloc: Start trial successful');
         final deviceIdEither = await _getDeviceIdUseCase(const NoParams());
         final deviceId = deviceIdEither.getOrElse(() => null);
         
         final updatedProfile = profile.copyWith(uuid: deviceId);
         await _userProfileRepository.saveProfile(updatedProfile);
+
+        if (deviceId != null) {
+          await _approveDeviceUseCase(ApproveDeviceParams(deviceId: deviceId));
+        }
 
         emit(state.copyWith(
           status: AuthStatus.authenticatedDriver,
@@ -386,7 +433,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         provider: event.provider!,
         amount: event.amount,
         currency: 'PEN',
-        description: 'Suscripción mensual Yape Transporte',
+        description: 'Suscripción mensual SonoPay',
       );
 
       final errorOccurred = await paymentResult.fold(
@@ -414,20 +461,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     UserProfile? profile = state.userProfile;
     final deviceIdEither = await _getDeviceIdUseCase(const NoParams());
     final String? currentDeviceId = deviceIdEither.getOrElse(() => null);
-    final String plan = event.amount >= 10.0 ? 'premium' : 'basic';
 
     if (profile == null) {
       profile = UserProfile.createSubscription(
-        name: 'Usuario Yape',
+        name: 'Usuario SonoPay',
         uuid: currentDeviceId,
-        subscriptionPlan: plan,
       );
       await _userProfileRepository.saveProfile(profile);
     } else {
       final result = await _activateSubscriptionUseCase(
-        ActivateSubscriptionParams(
-          profile: profile.copyWith(subscriptionPlan: plan),
-        ),
+        ActivateSubscriptionParams(profile: profile),
       );
       
       final errorOccurred = await result.fold(
@@ -444,6 +487,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         },
       );
       if (errorOccurred) return;
+    }
+
+    if (currentDeviceId != null) {
+      await _approveDeviceUseCase(ApproveDeviceParams(deviceId: currentDeviceId));
     }
 
     emit(state.copyWith(
@@ -469,7 +516,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     await result.fold(
       (failure) async {
-        if (failure.message.contains('Correo no verificado')) {
+        if (failure.message.contains('verificada')) {
            emit(state.copyWith(
             status: AuthStatus.needsVerification,
             error: null,
@@ -496,6 +543,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             deviceId: deviceId,
           ));
           return;
+        }
+
+        if (deviceId != null) {
+          await _approveDeviceUseCase(ApproveDeviceParams(deviceId: deviceId));
         }
 
         emit(state.copyWith(
@@ -542,12 +593,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             
             final profile = data.profile.copyWith(uuid: deviceId);
             await _userProfileRepository.saveProfile(profile);
+            
+            if (deviceId != null) {
+              AppLogger.d('AuthBloc: Linking device $deviceId');
+              await _approveDeviceUseCase(ApproveDeviceParams(deviceId: deviceId));
+            }
 
             AuthStatus nextStatus;
-            if (profile.businessType == null) {
-              nextStatus = AuthStatus.authenticatedDriver;
-            } else if (!profile.hasAccess) {
+            if (!profile.hasAccess) {
               nextStatus = AuthStatus.needsSubscription;
+            } else if (profile.businessType == null) {
+              nextStatus = AuthStatus.authenticatedDriver;
             } else {
               nextStatus = AuthStatus.authenticatedDriver;
             }
@@ -572,26 +628,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onAdminLoginRequested(AdminLoginRequested event, Emitter<AuthState> emit) async {
-    emit(state.copyWith(status: AuthStatus.loading));
-    final result = await _loginAdminUseCase(event.username, event.pin);
-    result.fold(
-      (failure) async => emit(state.copyWith(status: AuthStatus.unauthenticated, error: failure.message)),
-      (token) async {
-        add(const AppStarted());
-      },
-    );
-  }
-
   Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
     final result = await _logoutUseCase(const NoParams());
+    final rememberedEmail = state.rememberedEmail;
     result.fold(
-      (failure) => emit(AuthState(status: AuthStatus.unauthenticated, error: failure.message)),
-      (_) => emit(const AuthState(status: AuthStatus.unauthenticated)),
+      (failure) => emit(AuthState(
+        status: AuthStatus.unauthenticated, 
+        error: event.message ?? failure.message,
+        rememberedEmail: rememberedEmail,
+      )),
+      (_) => emit(AuthState(
+        status: AuthStatus.unauthenticated,
+        error: event.message,
+        rememberedEmail: rememberedEmail,
+      )),
     );
   }
 
   Future<void> _onUpdateProfile(UpdateProfile event, Emitter<AuthState> emit) async {
+    AppLogger.d('AuthBloc: Update profile requested');
     emit(state.copyWith(status: AuthStatus.loading));
 
     final result = await _updateProfileUseCase(
@@ -603,17 +658,33 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
 
     await result.fold(
-      (failure) async => emit(state.copyWith(
-        status: AuthStatus.authenticatedDriver,
-        error: failure.message,
-      )),
-      (profile) async {
-        await _userProfileRepository.saveProfile(profile);
+      (failure) async {
+        AppLogger.e('AuthBloc: Update profile failed: ${failure.message}');
         emit(state.copyWith(
-          status: profile.hasAccess ? AuthStatus.authenticatedDriver : AuthStatus.needsSubscription,
+          status: AuthStatus.authenticatedDriver,
+          error: failure.message,
+        ));
+      },
+      (profile) async {
+        AppLogger.d('AuthBloc: Update profile successful');
+        await _userProfileRepository.saveProfile(profile);
+        
+        AuthStatus nextStatus;
+        if (!profile.hasAccess) {
+          nextStatus = AuthStatus.needsSubscription;
+        } else {
+          nextStatus = AuthStatus.authenticatedDriver;
+        }
+
+        emit(state.copyWith(
+          status: nextStatus,
           userProfile: profile,
         ));
       },
     );
+  }
+
+  void _onClearError(ClearError event, Emitter<AuthState> emit) {
+    emit(state.copyWith(error: null));
   }
 }

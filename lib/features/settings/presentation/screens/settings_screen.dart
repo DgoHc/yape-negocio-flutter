@@ -21,7 +21,7 @@ class SettingsScreen extends StatelessWidget {
       providers: [
         BlocProvider(create: (context) => sl<SettingsBloc>()
           ..add(LoadSecondaryNumbers())
-          ..add(LoadBaseUrl()),
+          ..add(LoadControlSettings()),
         ),
         BlocProvider(create: (context) => sl<NotificationBloc>()
           ..add(GetMyNotificationCode()),
@@ -51,10 +51,6 @@ class SettingsView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            
-            const SizedBox(height: 32),
-            const Divider(),
-            const SizedBox(height: 24),
             const Text(
               'Notificaciones',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -121,8 +117,8 @@ class SettingsView extends StatelessWidget {
                                     isSecondary: true,
                                     onPressed: () {
                                       Share.share(
-                                        '¡Usa mi código de notificaciones de Yape Negocios para recibir notificaciones de mis pagos!\n\nCódigo: ${state.notificationCode!}',
-                                        subject: 'Mi código de notificaciones de Yape Negocios',
+                                        '¡Usa mi código de vinculación de SonoPay para recibir alertas de pagos en tiempo real!\n\nCódigo: ${state.notificationCode!}',
+                                        subject: 'Mi código de vinculación de SonoPay',
                                       );
                                     },
                                   ),
@@ -143,6 +139,35 @@ class SettingsView extends StatelessWidget {
                         ),
                       ),
                   ],
+                );
+              },
+            ),
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 24),
+            const Text(
+              'Gestión de Historial',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Configura cuánto tiempo deseas conservar el historial de pagos en el dispositivo.',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            BlocBuilder<SettingsBloc, SettingsState>(
+              builder: (context, state) {
+                return YtCard(
+                  child: Column(
+                    children: [
+                      ListTile(
+                        title: const Text('Conservar historial por:'),
+                        subtitle: Text(state.retentionDays == 0 ? 'Siempre' : '${state.retentionDays} días'),
+                        trailing: const Icon(Icons.history_toggle_off),
+                        onTap: () => _showRetentionDialog(context, state.retentionDays),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -252,6 +277,38 @@ class SettingsView extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _showRetentionDialog(BuildContext context, int currentDays) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Duración del Historial'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _retentionOption(context, '7 días', 7),
+            _retentionOption(context, '15 días', 15),
+            _retentionOption(context, '30 días', 30),
+            _retentionOption(context, '90 días', 90),
+            _retentionOption(context, 'Siempre', 0),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _retentionOption(BuildContext context, String label, int days) {
+    return ListTile(
+      title: Text(label),
+      onTap: () {
+        context.read<SettingsBloc>().add(UpdateRetentionDays(days));
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Historial se conservará por: $label')),
+        );
+      },
     );
   }
 }

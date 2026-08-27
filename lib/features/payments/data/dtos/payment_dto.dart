@@ -6,6 +6,9 @@ class PaymentDto {
   final String currency;
   final String externalId;
   final DateTime createdAt;
+  final String? operationNumber;
+  final String? rawText;
+  final String deviceId;
 
   PaymentDto({
     this.id,
@@ -14,6 +17,9 @@ class PaymentDto {
     required this.currency,
     required this.externalId,
     required this.createdAt,
+    this.operationNumber,
+    this.rawText,
+    required this.deviceId,
   });
 
   Map<String, dynamic> toJson() {
@@ -23,6 +29,9 @@ class PaymentDto {
       'currency': currency,
       'externalId': externalId,
       'createdAt': createdAt.toIso8601String(),
+      'operationNumber': operationNumber,
+      'rawText': rawText,
+      'deviceId': deviceId,
     };
   }
 
@@ -34,6 +43,9 @@ class PaymentDto {
       currency: json['currency'] as String,
       externalId: json['externalId'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      operationNumber: json['operationNumber'] as String?,
+      rawText: json['rawText'] as String?,
+      deviceId: json['deviceId'] as String? ?? '',
     );
   }
 }

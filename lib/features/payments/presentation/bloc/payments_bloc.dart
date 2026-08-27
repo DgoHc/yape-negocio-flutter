@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/services/tts_service.dart';
 import '../../domain/repositories/payment_repository.dart';
 import '../../domain/usecases/export_payments_use_case.dart';
 import '../../../notifications/domain/entities/payment_data.dart';
@@ -40,6 +42,16 @@ class ExportPayments extends PaymentsEvent {
   @override
   List<Object?> get props => [startDate, endDate];
 }
+
+class SaveManualPayment extends PaymentsEvent {
+  final PaymentData payment;
+  SaveManualPayment(this.payment);
+
+  @override
+  List<Object?> get props => [payment];
+}
+
+class ClearOldPayments extends PaymentsEvent {}
 
 // States
 enum PaymentsStatus { initial, loading, success, failure, exporting }
@@ -84,17 +96,23 @@ class PaymentsState extends Equatable {
 class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
   final PaymentRepository _paymentRepository;
   final ExportPaymentsUseCase _exportPaymentsUseCase;
+  final TtsService _ttsService;
+  final SharedPreferences _prefs;
   StreamSubscription? _paymentSubscription;
   StreamSubscription? _rawSubscription;
 
   PaymentsBloc(
     this._paymentRepository,
     this._exportPaymentsUseCase,
+    this._ttsService,
+    this._prefs,
   ) : super(const PaymentsState()) {
     on<LoadPayments>(_onLoadPayments);
     on<PaymentReceived>(_onPaymentReceived);
     on<RawNotificationReceived>(_onRawNotificationReceived);
     on<ExportPayments>(_onExportPayments);
+    on<SaveManualPayment>(_onSaveManualPayment);
+    on<ClearOldPayments>(_onClearOldPayments);
 
     _paymentSubscription = _paymentRepository.onPaymentReceived.listen((payment) {
       AppLogger.d('PaymentsBloc: Recibido evento de pago: ${payment.senderName}');
@@ -114,6 +132,13 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
   Future<void> _onLoadPayments(
       LoadPayments event, Emitter<PaymentsState> emit) async {
     emit(state.copyWith(status: PaymentsStatus.loading));
+    
+    // Ejecutar limpieza antes de cargar
+    final days = _prefs.getInt('history_retention_days') ?? 30;
+    if (days > 0) {
+      await _paymentRepository.clearOldPayments(days);
+    }
+
     final result = await _paymentRepository.getPayments();
     
     result.fold(
@@ -156,6 +181,33 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
       (failure) => emit(state.copyWith(status: PaymentsStatus.failure, error: failure.message)),
       (_) => emit(state.copyWith(status: PaymentsStatus.success)),
     );
+  }
+
+  Future<void> _onSaveManualPayment(
+      SaveManualPayment event, Emitter<PaymentsState> emit) async {
+    emit(state.copyWith(status: PaymentsStatus.loading));
+    final result = await _paymentRepository.savePayment(event.payment);
+    
+    result.fold(
+      (failure) => emit(state.copyWith(status: PaymentsStatus.failure, error: failure.message)),
+      (_) {
+        final isMuted = _prefs.getBool('is_muted') ?? false;
+        _ttsService.speak(
+          "${event.payment.senderName} envió ${event.payment.amount} soles",
+          isMuted: isMuted,
+        );
+        add(PaymentReceived(event.payment));
+      },
+    );
+  }
+
+  Future<void> _onClearOldPayments(
+      ClearOldPayments event, Emitter<PaymentsState> emit) async {
+    final days = _prefs.getInt('history_retention_days') ?? 30;
+    if (days > 0) {
+      await _paymentRepository.clearOldPayments(days);
+      add(LoadPayments());
+    }
   }
 
   @override

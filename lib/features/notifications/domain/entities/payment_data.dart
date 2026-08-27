@@ -6,6 +6,8 @@ class PaymentData extends Equatable {
   final String currency;
   final String rawText;
   final DateTime parsedAt;
+  final String? operationNumber;
+  final String? time;
 
   const PaymentData({
     required this.senderName,
@@ -13,8 +15,18 @@ class PaymentData extends Equatable {
     required this.currency,
     required this.rawText,
     required this.parsedAt,
+    this.operationNumber,
+    this.time,
   });
 
   @override
-  List<Object?> get props => [senderName, amount, currency, rawText, parsedAt];
+  List<Object?> get props => [
+        senderName,
+        amount,
+        currency,
+        rawText,
+        parsedAt,
+        operationNumber,
+        time,
+      ];
 }

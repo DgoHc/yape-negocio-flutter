@@ -9,8 +9,9 @@ class PaymentMapper {
       senderName: model.senderName,
       amount: model.amount,
       currency: model.currency,
-      rawText: '',
+      rawText: model.rawText ?? '',
       parsedAt: model.createdAt,
+      operationNumber: model.operationNumber,
     );
   }
 
@@ -19,8 +20,9 @@ class PaymentMapper {
       senderName: dto.senderName,
       amount: dto.amount,
       currency: dto.currency,
-      rawText: '',
+      rawText: dto.rawText ?? '',
       parsedAt: dto.createdAt,
+      operationNumber: dto.operationNumber,
     );
   }
 
@@ -32,16 +34,21 @@ class PaymentMapper {
       externalId: externalId,
       isSynced: isSynced,
       createdAt: entity.parsedAt,
+      operationNumber: entity.operationNumber,
+      rawText: entity.rawText,
     );
   }
 
-  static PaymentDto toDto(PaymentData entity, String externalId) {
+  static PaymentDto toDto(PaymentData entity, String externalId, String deviceId) {
     return PaymentDto(
       senderName: entity.senderName,
       amount: entity.amount,
       currency: entity.currency,
       externalId: externalId,
       createdAt: entity.parsedAt,
+      operationNumber: entity.operationNumber,
+      rawText: entity.rawText,
+      deviceId: deviceId,
     );
   }
 }

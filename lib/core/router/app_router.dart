@@ -16,6 +16,8 @@ import '../../features/auth/presentation/screens/email_verification_screen.dart'
 import '../../features/admin/presentation/screens/admin_panel_screen.dart';
 import '../../features/notifications/presentation/screens/notification_onboarding_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/auth/presentation/screens/onboarding_tutorial_screen.dart';
+import '../../features/payments/presentation/screens/payment_history_screen.dart';
 import '../di/injection_container.dart';
 
 class GoRouterRefreshStream extends ChangeNotifier {
@@ -92,6 +94,14 @@ class AppRouter {
         path: '/verify-email',
         builder: (context, state) => const EmailVerificationScreen(),
       ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingTutorialScreen(),
+      ),
+      GoRoute(
+        path: '/payment-history',
+        builder: (context, state) => const PaymentHistoryScreen(),
+      ),
     ],
     redirect: (context, state) {
       final authState = context.read<AuthBloc>().state;
@@ -106,8 +116,9 @@ class AppRouter {
       final isSubscription = location == '/subscription';
       final isSetupBusinessType = location == '/setup-business-type';
       final isVerifyEmail = location == '/verify-email';
+      final isOnboarding = location == '/onboarding';
       
-      if (isSplashing) return null;
+      if (isSplashing || isOnboarding) return null;
 
       // 0. Public Routes
       if (isLogin || isAdminLogin || isRegister || isVerifyEmail || isSetupBusinessType || isSubscription) {
@@ -153,6 +164,9 @@ class AppRouter {
           if (isLogin || isAdminLogin || isRegister || location == '/dashboard') return '/admin-panel';
           return null;
           
+        case AuthStatus.needsPairing:
+          return location == '/pair-device' ? null : '/pair-device';
+
         case AuthStatus.authenticatedDriver:
           if (authState.userProfile?.businessType == null) {
             return '/setup-business-type';

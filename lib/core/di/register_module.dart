@@ -8,6 +8,9 @@ import '../network/network_config_service.dart';
 import '../storage/drift/app_database.dart';
 import '../storage/secure/token_manager.dart';
 import '../config/env_config.dart';
+import '../utils/app_logger.dart';
+import 'injection_container.dart';
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
 
 @module
 abstract class RegisterModule {
@@ -62,7 +65,16 @@ abstract class RegisterModule {
           if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
             // Limpiar token localmente si el servidor rechaza la sesión
             await tokenManager.deleteToken();
-            // El router reaccionará al cambio de estado si el BLoC se actualiza
+            // Despachar evento para cerrar sesión en el AuthBloc y redirigir
+            try {
+              if (sl.isRegistered<AuthBloc>()) {
+                sl<AuthBloc>().add(const LogoutRequested(
+                  message: 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.',
+                ));
+              }
+            } catch (ex) {
+              AppLogger.e('Error dispatching LogoutRequested on 401/403', ex);
+            }
           }
           return handler.next(e);
         },

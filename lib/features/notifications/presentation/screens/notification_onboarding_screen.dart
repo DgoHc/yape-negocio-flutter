@@ -14,13 +14,15 @@ class NotificationOnboardingScreen extends StatefulWidget {
 
 class _NotificationOnboardingScreenState extends State<NotificationOnboardingScreen> with WidgetsBindingObserver {
   final _service = sl<NotificationPlatformService>();
-  bool _isChecking = false;
+  bool _isNotificationEnabled = false;
+  bool _isAccessibilityEnabled = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkPermission();
+    _checkPermissions();
   }
 
   @override
@@ -32,59 +34,136 @@ class _NotificationOnboardingScreenState extends State<NotificationOnboardingScr
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkPermission();
+      _checkPermissions();
     }
   }
 
-  Future<void> _checkPermission() async {
-    final isGranted = await _service.isNotificationPermissionGranted();
-    AppLogger.d('Notification Permission Status: $isGranted');
-    if (isGranted && mounted) {
-      // Si ya tiene el permiso, lo enviamos al dashboard
-      context.go('/dashboard');
+  Future<void> _checkPermissions() async {
+    setState(() => _isLoading = true);
+    final notification = await _service.isNotificationPermissionGranted();
+    final accessibility = await _service.isAccessibilityServiceEnabled();
+    
+    AppLogger.d('Permissions: Notification: $notification | Accessibility: $accessibility');
+    
+    if (mounted) {
+      setState(() {
+        _isNotificationEnabled = notification;
+        _isAccessibilityEnabled = accessibility;
+        _isLoading = false;
+      });
+      
+      // Si ambos están activos, ya podemos ir al dashboard
+      if (notification && accessibility) {
+        context.go('/dashboard');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: YtLoader()));
+    }
+
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Configuración de Captura'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.notifications_active, size: 80, color: Color(0xFF00BFA5)),
+            const Icon(Icons.security_update_good, size: 80, color: Color(0xFF7C4DFF)),
             const SizedBox(height: 32),
             const Text(
-              'Activar Notificaciones',
+              'Activa SonoPay para Yape',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             const Text(
-              'Para que Yape Transporte pueda detectar tus pagos automáticamente, necesitamos acceso a tus notificaciones.',
+              'Para capturar pagos completos sin recortes, activa los siguientes permisos:',
               style: TextStyle(fontSize: 16, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 48),
-            YtButton(
-              label: 'Dar Permiso',
-              isLoading: _isChecking,
-              onPressed: () async {
-                setState(() => _isChecking = true);
-                await _service.openNotificationSettings();
-                setState(() => _isChecking = false);
-              },
+            const SizedBox(height: 40),
+            
+            // Permiso 1: Notificaciones
+            _PermissionTile(
+              title: 'Acceso a Notificaciones',
+              subtitle: 'Necesario para detectar el aviso de pago.',
+              isEnabled: _isNotificationEnabled,
+              onTap: () => _service.openNotificationSettings(),
             ),
+            
             const SizedBox(height: 16),
+            
+            // Permiso 2: Accesibilidad
+            _PermissionTile(
+              title: 'Servicio de Scrapping',
+              subtitle: 'Necesario para capturar nombres completos.',
+              isEnabled: _isAccessibilityEnabled,
+              onTap: () => _service.openAccessibilitySettings(),
+            ),
+            
+            if (!_isAccessibilityEnabled)
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text(
+                  '💡 Si el botón está bloqueado: Ve a Información de la app > 3 puntos (⋮) > Permitir ajustes restringidos.',
+                  style: TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+            const Spacer(),
+            
             YtButton(
-              label: 'Más tarde',
+              label: 'Ir al Dashboard',
               isSecondary: true,
               onPressed: () => context.go('/dashboard'),
             ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PermissionTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool isEnabled;
+  final VoidCallback onTap;
+
+  const _PermissionTile({
+    required this.title,
+    required this.subtitle,
+    required this.isEnabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      tileColor: isEnabled ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      leading: Icon(
+        isEnabled ? Icons.check_circle : Icons.warning_amber_rounded,
+        color: isEnabled ? Colors.green : Colors.orange,
+        size: 32,
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+      trailing: isEnabled 
+        ? const Text('ACTIVO', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
+        : const Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: isEnabled ? null : onTap,
     );
   }
 }

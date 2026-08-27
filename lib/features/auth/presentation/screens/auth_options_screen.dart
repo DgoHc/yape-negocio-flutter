@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/yt_design_system.dart';
 
 class AuthOptionsScreen extends StatelessWidget {
@@ -9,12 +8,11 @@ class AuthOptionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor),
+          icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.primary),
           onPressed: () => context.go('/'),
         ),
       ),
@@ -24,18 +22,18 @@ class AuthOptionsScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.directions_bus,
+              Icon(
+                Icons.payments_rounded,
                 size: 80,
-                color: AppTheme.primaryColor,
+                color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(height: 32),
-              const Text(
-                'Bienvenido a Yape Transporte',
+              Text(
+                'Bienvenido a SonoPay',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
                 ),
                 textAlign: TextAlign.center,
               ),

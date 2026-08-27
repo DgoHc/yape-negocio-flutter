@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'package:dartz/dartz.dart';
@@ -13,6 +12,7 @@ import '../../../notifications/data/notification_platform_service.dart';
 import '../../../notifications/domain/entities/payment_data.dart';
 import '../../../notifications/domain/parsers/payment_parser.dart';
 import '../../../../core/services/tts_service.dart';
+import '../../../../core/services/device_info_service.dart';
 import '../../../../core/storage/drift/app_database.dart' as db;
 import '../../domain/repositories/payment_repository.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -21,10 +21,7 @@ import '../local_data_source/payment_local_data_source.dart';
 import '../mappers/payment_mapper.dart';
 import '../dtos/payment_dto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../auth/domain/entities/user_profile.dart';
 import '../../../auth/data/mappers/user_profile_mapper.dart';
-import '../../../auth/data/models/auth_models.dart';
-import '../../../auth/data/models/auth_models.dart';
 import '../../../auth/data/models/auth_models.dart';
 
 @LazySingleton(as: PaymentRepository)
@@ -34,10 +31,12 @@ class PaymentRepositoryImpl implements PaymentRepository {
   final ConnectivityBloc connectivityBloc;
   final NotificationPlatformService notificationService;
   final TtsService ttsService;
+  final db.PaymentDao paymentDao;
   final db.SecondaryNumberDao secondaryNumberDao;
   final db.SyncDao syncDao;
   final db.UserProfileDao userProfileDao;
   final SharedPreferences prefs;
+  final DeviceInfoService deviceInfoService;
   final _paymentController = StreamController<PaymentData>.broadcast();
   final _rawNotificationController = StreamController<String>.broadcast();
 
@@ -47,10 +46,12 @@ class PaymentRepositoryImpl implements PaymentRepository {
     this.connectivityBloc,
     this.notificationService,
     this.ttsService,
+    this.paymentDao,
     this.secondaryNumberDao,
     this.syncDao,
     this.userProfileDao,
     this.prefs,
+    this.deviceInfoService,
   ) {
     _initNotificationListener();
   }
@@ -65,57 +66,35 @@ class PaymentRepositoryImpl implements PaymentRepository {
     AppLogger.i('PaymentRepository: Iniciando escucha de notificaciones...');
     notificationService.notificationStream.listen(
       (payload) async {
-        // 1. Verificar si la detección está habilitada globalmente
         final isDetectionEnabled = prefs.getBool('detection_enabled') ?? true;
-        if (!isDetectionEnabled) {
-          AppLogger.d('PaymentRepository: Detección desactivada por el usuario.');
-          return;
-        }
+        if (!isDetectionEnabled) return;
 
-        // 2. Verificar si el usuario tiene acceso (Plan o Prueba activa)
         final profileModel = await userProfileDao.getProfile();
         if (profileModel == null) return;
         
         final profile = UserProfileMapper.fromModel(UserProfileModel.fromDb(profileModel));
-        if (!profile.hasAccess) {
-          AppLogger.w('PaymentRepository: El usuario no tiene acceso activo (Plan expirado). Bloqueando detección propia.');
-          return;
-        }
+        if (!profile.hasAccess) return;
 
-        AppLogger.d('PaymentRepository: Payload recibido de nativo: $payload');
+        final pkg = payload['packageName'] ?? payload['debugPackage'] ?? 'Desconocido';
+        final title = payload['rawTitle'] ?? payload['debugTitle'] ?? '';
+        final body = payload['rawBody'] ?? payload['debugBody'] ?? '';
+        final scraped = payload['scrapedContent'] as String?;
 
-        final pkg = payload['debugPackage'] ?? 'Desconocido';
-        final title = payload['debugTitle'] ?? '';
-        final body = payload['debugBody'] ?? '';
+        _rawNotificationController.add("App: $pkg\nTítulo: $title\nCuerpo: $body${scraped != null ? '\nScraped: $scraped' : ''}");
 
-        _rawNotificationController.add("App: $pkg\nTítulo: $title\nCuerpo: $body");
+        String contentToParse = payload['rawBody'] as String? ?? scraped ?? body;
+        if (contentToParse.isEmpty) return;
 
-        String contentToParse = payload['rawBody'] as String? ?? body;
-        AppLogger.d('PaymentRepository: contentToParse = "$contentToParse"');
-
-        if (contentToParse.isEmpty) {
-          AppLogger.w('PaymentRepository: Notificación vacía, ignorando.');
-          return;
-        }
-
-        AppLogger.d('PaymentRepository: Intentando parsear contenido: "$contentToParse"');
         var result = PaymentParser.parse(contentToParse);
-        AppLogger.i('PaymentRepository: result.isRight() = ${result.isRight()}');
-
         if (result.isLeft() && title.isNotEmpty) {
-          AppLogger.d('PaymentRepository: Falló cuerpo, intentando con título: "$title"');
           result = PaymentParser.parse(title);
-          AppLogger.d('PaymentRepository: result después de título: ${result.isRight()}');
         }
 
         result.fold(
           (failure) => AppLogger.e('PaymentRepository: No se pudo procesar el pago: ${failure.message}'),
           (payment) async {
-            AppLogger.i('PaymentRepository: ¡PAGO VÁLIDO DETECTADO! Guardando...');
             await savePayment(payment);
-            AppLogger.i('PaymentRepository: Pago guardado.');
             _paymentController.add(payment);
-            AppLogger.i('PaymentRepository: Pago agregado a controller.');
             
             final isMuted = prefs.getBool('is_muted') ?? false;
             ttsService.speak(
@@ -123,7 +102,6 @@ class PaymentRepositoryImpl implements PaymentRepository {
               isMuted: isMuted,
             );
 
-            AppLogger.i('PaymentRepository: TTS llamado.');
             await _notifySecondaryNumbers(payment);
           },
         );
@@ -143,21 +121,15 @@ class PaymentRepositoryImpl implements PaymentRepository {
           "👤 *De:* ${payment.senderName}\n"
           "💰 *Monto:* ${payment.currency} ${payment.amount.toStringAsFixed(2)}\n"
           "🕒 *Hora:* ${payment.parsedAt.hour}:${payment.parsedAt.minute.toString().padLeft(2, '0')}\n\n"
-          "_Enviado automáticamente por Yape Transporte_";
+          "_Enviado automáticamente por SonoPay_";
 
       for (final number in secondaryNumbers) {
         if (number.type == 'whatsapp') {
-          // Limpiar el número de espacios, guiones, etc.
           final cleanPhone = number.phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
           final url = Uri.parse("https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}");
-          
-          AppLogger.i('Abriendo WhatsApp para: $cleanPhone');
           if (await canLaunchUrl(url)) {
             await launchUrl(url, mode: LaunchMode.externalApplication);
-            // Esperar un poco antes del siguiente para no saturar el sistema
             await Future.delayed(const Duration(seconds: 2));
-          } else {
-            AppLogger.w('No se pudo abrir WhatsApp para el número: $cleanPhone');
           }
         }
       }
@@ -182,22 +154,20 @@ class PaymentRepositoryImpl implements PaymentRepository {
     try {
       final externalId = DateTime.now().millisecondsSinceEpoch.toString();
       final model = PaymentMapper.toModel(payment, externalId, false);
-
       await localDataSource.savePayment(model);
 
       if (connectivityBloc.state.status == ConnectivityStatus.connected) {
         try {
-          final dto = PaymentMapper.toDto(payment, externalId);
+          final deviceId = await deviceInfoService.getDeviceUUID() ?? '';
+          final dto = PaymentMapper.toDto(payment, externalId, deviceId);
           await remoteDataSource.createPayment(dto);
           await localDataSource.markAsSynced(externalId);
         } catch (e) {
-          AppLogger.w('Failed to sync payment immediately, enqueued: $e');
           await _addToSyncQueue(externalId, payment);
         }
       } else {
         await _addToSyncQueue(externalId, payment);
       }
-
       return const Right(null);
     } catch (e) {
       return Left(DatabaseFailure(e.toString()));
@@ -213,6 +183,8 @@ class PaymentRepositoryImpl implements PaymentRepository {
         'currency': payment.currency,
         'createdAt': payment.parsedAt.toIso8601String(),
         'externalId': externalId,
+        'operationNumber': payment.operationNumber,
+        'rawText': payment.rawText,
       })),
       status: const Value('pending'),
     );
@@ -220,9 +192,22 @@ class PaymentRepositoryImpl implements PaymentRepository {
   }
 
   @override
+  Future<Either<Failure, void>> clearOldPayments(int days) async {
+    if (days <= 0) return const Right(null);
+    try {
+      final before = DateTime.now().subtract(Duration(days: days));
+      await paymentDao.deleteOldPayments(before);
+      return const Right(null);
+    } catch (e) {
+      return Left(DatabaseFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> syncPayments() async {
     try {
       final pending = await syncDao.getPendingSyncs();
+      final deviceId = await deviceInfoService.getDeviceUUID() ?? '';
 
       for (final entry in pending) {
         try {
@@ -235,19 +220,18 @@ class PaymentRepositoryImpl implements PaymentRepository {
             currency: payload['currency'] as String,
             externalId: externalId,
             createdAt: DateTime.parse(payload['createdAt'] as String),
+            operationNumber: payload['operationNumber'] as String?,
+            rawText: payload['rawText'] as String?,
+            deviceId: deviceId,
           ));
 
           await localDataSource.markAsSynced(externalId);
           await syncDao.deleteSynced(entry.id);
-        } catch (e) {
-          AppLogger.w('Failed to sync payment, trying again later: $e');
-        }
+        } catch (e) {}
       }
-
       return const Right(null);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
   }
 }
-

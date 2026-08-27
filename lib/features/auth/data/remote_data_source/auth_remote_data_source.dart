@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/network/network_error_handler.dart';
 import '../dtos/user_profile_dto.dart';
 
 abstract class AuthRemoteDataSource {
@@ -87,10 +88,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
       return Right((token: token, profile: profileDto));
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
       AppLogger.e('Error en register', e);
-      return Left(ServerFailure('Error en registro: $e'));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -115,10 +116,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
       return Right((token: token, profile: profileDto));
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
       AppLogger.e('Error en login', e);
-      return Left(ServerFailure('Error en inicio de sesión: $e'));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -129,10 +130,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final profileDto = _parseProfileResponse(response.data);
       return Right(profileDto);
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
       AppLogger.e('Error en startTrial', e);
-      return Left(ServerFailure('Error al iniciar prueba: $e'));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -143,10 +144,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final profileDto = _parseProfileResponse(response.data);
       return Right(profileDto);
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
       AppLogger.e('Error en getProfile', e);
-      return Left(ServerFailure('Error al obtener perfil: $e'));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -165,10 +166,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final profileDto = _parseProfileResponse(response.data);
       return Right(profileDto);
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
       AppLogger.e('Error en updateProfile', e);
-      return Left(ServerFailure('Error al actualizar perfil: $e'));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -203,10 +204,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final token = data['token']?.toString() ?? '';
       return Right(token);
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
       AppLogger.e('Error en loginAdmin', e);
-      return Left(ServerFailure('Error en login admin: $e'));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -220,10 +221,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final isApproved = data['isApproved'] as bool? ?? false;
       return Right(isApproved);
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
       AppLogger.e('Error en checkDeviceStatus', e);
-      return Left(ServerFailure('Error al verificar dispositivo: $e'));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -233,10 +234,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       await _dio.post('/devices/register', data: deviceInfo);
       return const Right(null);
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
       AppLogger.e('Error en registerDevice', e);
-      return Left(ServerFailure('Error al registrar dispositivo: $e'));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -246,10 +247,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       await _dio.patch('/devices/$uuid/unapprove');
       return const Right(null);
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
       AppLogger.e('Error en unapproveDevice', e);
-      return Left(ServerFailure('Error al desaprobar dispositivo: $e'));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -259,10 +260,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final response = await _dio.post('/users/activate-subscription', data: profile.toJson());
       return Right(_parseProfileResponse(response.data));
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
       AppLogger.e('Error en activateSubscription', e);
-      return Left(ServerFailure('Error al activar suscripción: $e'));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -281,9 +282,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final profileDto = UserProfileDto.fromJson(Map<String, dynamic>.from(data));
       return Right((token: token, profile: profileDto));
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -293,9 +294,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       await _dio.post('/users/resend-otp', data: {'email': email});
       return const Right(null);
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
 
@@ -316,17 +317,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final profileDto = UserProfileDto.fromJson(Map<String, dynamic>.from(data));
       return Right((token: token, profile: profileDto));
     } on DioException catch (e) {
-      return Left(ServerFailure(_extractErrorMessage(e)));
+      return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(NetworkErrorHandler.handleGeneralError(e));
     }
-  }
-
-  String _extractErrorMessage(DioException e) {
-    final data = e.response?.data;
-    if (data != null && data is Map) {
-      return data['error']?.toString() ?? data['message']?.toString() ?? e.message ?? 'Error del servidor';
-    }
-    return e.message ?? 'Error desconocido';
   }
 }
