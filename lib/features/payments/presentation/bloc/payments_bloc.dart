@@ -131,6 +131,8 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
 
   Future<void> _onLoadPayments(
       LoadPayments event, Emitter<PaymentsState> emit) async {
+    // Evitar bloqueos del hilo principal con un delay mínimo
+    await Future.delayed(Duration.zero);
     emit(state.copyWith(status: PaymentsStatus.loading));
     
     // Ejecutar limpieza antes de cargar

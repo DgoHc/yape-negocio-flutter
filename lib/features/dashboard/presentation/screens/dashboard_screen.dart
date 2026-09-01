@@ -456,30 +456,23 @@ class _DashboardViewState extends State<DashboardView> with WidgetsBindingObserv
 
                                 return YtCard(
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  borderRadius: 20,
                                   child: Row(
                                     children: [
-                                      Container(
+                                      ClayContainer(
                                         height: 48,
                                         width: 48,
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [Color(0xFF7C4DFF), Color(0xFF00E5FF)],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                          borderRadius: BorderRadius.circular(16),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: const Color(0xFF7C4DFF).withValues(alpha: 0.3),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 4),
+                                        color: AppTheme.secondaryColor,
+                                        borderRadius: 14,
+                                        child: Center(
+                                          child: Text(
+                                            initial,
+                                            style: const TextStyle(
+                                              color: AppTheme.textPrimary,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
                                             ),
-                                          ],
-                                        ),
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          initial,
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(width: 16),
@@ -489,50 +482,37 @@ class _DashboardViewState extends State<DashboardView> with WidgetsBindingObserv
                                           children: [
                                             Text(
                                               payment.senderName,
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                                color: AppTheme.textPrimary,
+                                              ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                             const SizedBox(height: 4),
                                             Row(
                                               children: [
-                                                Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
+                                                const Icon(Icons.access_time, size: 12, color: AppTheme.textSecondary),
                                                 const SizedBox(width: 4),
                                                 Text(
                                                   '${payment.parsedAt.hour.toString().padLeft(2, '0')}:${payment.parsedAt.minute.toString().padLeft(2, '0')}',
-                                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                                                 ),
-                                                if (payment.operationNumber != null) ...[
-                                                  const SizedBox(width: 8),
-                                                  Container(width: 3, height: 3, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.grey.shade400)),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    'Op: ${payment.operationNumber}',
-                                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                                                  ),
-                                                ],
                                               ],
                                             ),
                                           ],
                                         ),
                                       ),
                                       const SizedBox(width: 12),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            '${payment.currency} ${payment.amount.toStringAsFixed(2)}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w900,
-                                              fontSize: 18,
-                                              color: Color(0xFF00C853),
-                                            ),
-                                          ),
-                                          const Text(
-                                            'Completado',
-                                            style: TextStyle(fontSize: 9, color: Color(0xFF00C853), fontWeight: FontWeight.bold),
-                                          ),
-                                        ],
+                                      Text(
+                                        '${payment.currency} ${payment.amount.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 18,
+                                          color: AppTheme.successColor,
+                                          fontFeatures: [FontFeature.tabularFigures()],
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -819,30 +799,27 @@ class _TotalTodayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final paymentsState = context.watch<PaymentsBloc>().state;
 
     return YtCard(
-      gradientColors: isDark
-          ? [const Color(0xFF1F1147), const Color(0xFF0F0728)]
-          : [const Color(0xFF7C4DFF), const Color(0xFF6C2DFF)],
+      color: AppTheme.primaryColor,
+      padding: const EdgeInsets.symmetric(vertical: 32),
       child: Center(
-        child: Text(
-          'S/ ${paymentsState.dailyTotal.toStringAsFixed(2)}',
-          style: const TextStyle(
-            fontSize: 38,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            letterSpacing: 1.0,
-            shadows: [
-              Shadow(
-                color: Color(0x4000E676),
-                blurRadius: 10,
-                offset: Offset(0, 4),
+        child: Column(
+          children: [
+            Text(
+              'Total de hoy',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary.withValues(alpha: 0.6),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'S/ ${paymentsState.dailyTotal.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+          ],
         ),
       ),
     );

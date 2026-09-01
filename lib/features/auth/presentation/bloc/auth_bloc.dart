@@ -630,7 +630,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       AppLogger.e('AuthBloc: Critical error in Google login', e, stack);
       emit(state.copyWith(
         status: AuthStatus.unauthenticated,
-        error: "Error en el inicio de sesión con Google: $e",
+        error: "Detalle técnico Google: $e",
       ));
     }
   }

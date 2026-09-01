@@ -126,7 +126,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<Either<Failure, UserProfileDto>> startTrial() async {
     try {
-      final response = await _dio.post('/users/start-trial');
+      final response = await _dio.post('/users/start-trial', data: {}); // Enviamos body vacío para evitar 400
       final profileDto = _parseProfileResponse(response.data);
       return Right(profileDto);
     } on DioException catch (e) {

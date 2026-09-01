@@ -35,14 +35,14 @@ class SubscriptionScreen extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.error!),
-                backgroundColor: Colors.red,
+                backgroundColor: AppTheme.errorColor,
               ),
             );
           } else if (state.status == AuthStatus.authenticatedDriver && state.userProfile?.hasAccess == true) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('¡Plan activado con éxito!'),
-                backgroundColor: Colors.green,
+                backgroundColor: AppTheme.successColor,
               ),
             );
             context.go('/notification-onboarding');
@@ -55,21 +55,15 @@ class SubscriptionScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   '¡Bienvenido!',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 32),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'Elige el plan que mejor se adapte a tu negocio',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppTheme.textSecondary),
                   textAlign: TextAlign.center,
                 ),
                 BlocBuilder<AuthBloc, AuthState>(
@@ -80,7 +74,7 @@ class SubscriptionScreen extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 16),
                         child: Text(
                           'Tu periodo de prueba terminó el ${profile.trialEndDate!.day}/${profile.trialEndDate!.month}. Suscríbete para continuar.',
-                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: AppTheme.errorColor, fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                       );
@@ -92,37 +86,36 @@ class SubscriptionScreen extends StatelessWidget {
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final profile = state.userProfile;
-                    // Detectar si ya usó la prueba: si trialEndDate no es nulo, significa que ya la activó alguna vez.
                     final hasUsedTrial = profile?.trialEndDate != null || profile?.isSubscribed == true;
 
                     return Column(
                       children: [
                         if (!hasUsedTrial) ...[
                           const _TrialCard(),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 32),
                         ],
                         const _SubscriptionCard(
                           title: 'Plan Básico',
                           price: '5.00',
                           benefits: [
-                            'Todo lo de la prueba gratuita',
-                            'Hasta 4 usuarios a notificar',
-                            'Acceso ilimitado sin expiración',
+                            'Anuncios por voz ilimitados',
+                            'Hasta 4 usuarios vinculados',
+                            'Acceso vitalicio',
                             'Soporte estándar',
                           ],
                           isRecommended: true,
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 32),
                         const _SubscriptionCard(
                           title: 'Plan Premium',
                           price: '10.00',
                           benefits: [
                             'Todo lo del Plan Básico',
-                            'Usuarios ilimitados a notificar',
+                            'Usuarios ilimitados',
                             'Soporte prioritario 24/7',
-                            'Reportes detallados mensuales',
+                            'Reportes Excel avanzados',
                           ],
-                          cardColor: Color(0xFF1A237E), // Un azul más oscuro/premium
+                          color: Color(0xFFFFD54F), // Amarillo más brillante
                         ),
                         const SizedBox(height: 40),
                       ],
@@ -146,48 +139,26 @@ class _TrialCard extends StatelessWidget {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         return YtCard(
+          color: AppTheme.surfaceColor,
           child: Column(
             children: [
-              const Icon(
-                Icons.timer_outlined,
-                size: 48,
-                color: AppTheme.primaryColor,
+              const ClayContainer(
+                color: AppTheme.secondaryColor,
+                borderRadius: 100,
+                padding: EdgeInsets.all(16),
+                child: Icon(Icons.timer_outlined, size: 32, color: AppTheme.textPrimary),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Prueba Gratuita',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              const Text('Prueba Gratuita', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
               const SizedBox(height: 8),
-              const Text(
-                '14 días',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryColor,
-                ),
-              ),
+              const Text('14 días', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
               const SizedBox(height: 24),
-              const _BenefitsList(
-                benefits: [
-                  'Detección de pagos en tiempo real',
-                  'Registro de todas las transacciones',
-                  'Notificaciones de voz',
-                  'Exportación de datos',
-                ],
-              ),
+              const _BenefitsList(benefits: ['Detección en tiempo real', 'Notificaciones de voz', 'Historial seguro']),
               const SizedBox(height: 24),
               YtButton(
                 label: 'Empezar prueba',
                 isSecondary: true,
-                onPressed: state.status == AuthStatus.loading
-                    ? null
-                    : () {
-                        context.read<AuthBloc>().add(StartTrial());
-                      },
+                onPressed: state.status == AuthStatus.loading ? null : () => context.read<AuthBloc>().add(StartTrial()),
                 isLoading: state.status == AuthStatus.loading,
               ),
             ],
@@ -203,117 +174,51 @@ class _SubscriptionCard extends StatelessWidget {
   final String price;
   final List<String> benefits;
   final bool isRecommended;
-  final Color? cardColor;
+  final Color? color;
 
   const _SubscriptionCard({
     required this.title,
     required this.price,
     required this.benefits,
     this.isRecommended = false,
-    this.cardColor,
+    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        return Card(
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          color: cardColor ?? AppTheme.primaryColor,
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                if (isRecommended)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Text(
-                      'Recomendado',
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                Icon(
-                  title.contains('Premium') ? Icons.stars : Icons.workspace_premium_outlined,
-                  size: 48,
-                  color: Colors.white,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    const Text(
-                      'S/',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      price,
-                      style: const TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const Text(
-                      '/mes',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                _BenefitsList(
-                  benefits: benefits,
-                  textColor: Colors.white,
-                  iconColor: Colors.white70,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: state.status == AuthStatus.loading
-                      ? null
-                      : () => _showPaymentMethodDialog(context, double.parse(price)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: cardColor ?? AppTheme.primaryColor,
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: state.status == AuthStatus.loading
-                      ? const YtLoader()
-                      : const Text('Suscribirme ahora'),
-                ),
-              ],
+    return YtCard(
+      color: color ?? AppTheme.primaryColor,
+      child: Column(
+        children: [
+          if (isRecommended)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(color: AppTheme.surfaceColor, borderRadius: BorderRadius.circular(16)),
+              child: const Text('Recomendado', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 12)),
             ),
+          Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              const Text('S/', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+              Text(price, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
+              const Text('/mes', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
+            ],
           ),
-        );
-      },
+          const SizedBox(height: 24),
+          _BenefitsList(benefits: benefits),
+          const SizedBox(height: 24),
+          YtButton(
+            label: 'Suscribirme',
+            color: AppTheme.surfaceColor,
+            onPressed: () => _showPaymentMethodDialog(context, double.parse(price)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -321,51 +226,43 @@ class _SubscriptionCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Selecciona método de pago'),
+        backgroundColor: AppTheme.backgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Text('Método de pago', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.credit_card),
-              title: const Text('Tarjeta (Culqi)'),
-              onTap: () {
-                Navigator.pop(dialogContext);
-                context.read<AuthBloc>().add(Subscribe(
-                      provider: PaymentProvider.culqi,
-                      amount: amount,
-                    ));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.shopping_cart),
-              title: const Text('Mercado Pago'),
-              onTap: () {
-                Navigator.pop(dialogContext);
-                context.read<AuthBloc>().add(Subscribe(
-                      provider: PaymentProvider.mercadoPago,
-                      amount: amount,
-                    ));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.payment),
-              title: const Text('Yape'),
-              onTap: () {
-                Navigator.pop(dialogContext);
-                context.read<AuthBloc>().add(Subscribe(
-                      provider: PaymentProvider.yape,
-                      amount: amount,
-                    ));
-              },
-            ),
+            _MethodTile(icon: Icons.credit_card, label: 'Tarjeta (Culqi)', onTap: () {
+              Navigator.pop(dialogContext);
+              context.read<AuthBloc>().add(Subscribe(provider: PaymentProvider.culqi, amount: amount));
+            }),
+            const SizedBox(height: 12),
+            _MethodTile(icon: Icons.shopping_cart, label: 'Mercado Pago', onTap: () {
+              Navigator.pop(dialogContext);
+              context.read<AuthBloc>().add(Subscribe(provider: PaymentProvider.mercadoPago, amount: amount));
+            }),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-        ],
+      ),
+    );
+  }
+}
+
+class _MethodTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _MethodTile({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClayContainer(
+      color: AppTheme.surfaceColor,
+      borderRadius: 16,
+      child: ListTile(
+        leading: Icon(icon, color: AppTheme.textPrimary),
+        title: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+        onTap: onTap,
       ),
     );
   }
@@ -373,38 +270,22 @@ class _SubscriptionCard extends StatelessWidget {
 
 class _BenefitsList extends StatelessWidget {
   final List<String> benefits;
-  final Color textColor;
-  final Color iconColor;
-
-  const _BenefitsList({
-    required this.benefits,
-    this.textColor = Colors.black87,
-    this.iconColor = Colors.green,
-  });
+  const _BenefitsList({required this.benefits});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: benefits
-          .map(
-            (benefit) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle, color: iconColor, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      benefit,
-                      style: TextStyle(color: textColor),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-          .toList(),
+      children: benefits.map((benefit) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle_outline, color: AppTheme.textSecondary, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text(benefit, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14))),
+          ],
+        ),
+      )).toList(),
     );
   }
 }
