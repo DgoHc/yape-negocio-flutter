@@ -53,4 +53,7 @@ abstract class UserAuthRepository {
 
   /// Activa una suscripción para el usuario.
   Future<Either<Failure, UserProfile>> activateSubscription(UserProfile profile);
+
+  /// Guarda el token de sesión de forma segura.
+  Future<void> saveToken(String token);
 }

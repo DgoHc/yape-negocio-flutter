@@ -3,13 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/yt_design_system.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../features/notifications/presentation/bloc/notification_bloc.dart';
 import '../../../../features/notifications/presentation/bloc/notification_event.dart';
 import '../../../../features/notifications/presentation/bloc/notification_state.dart';
-import '../../../../features/notifications/presentation/screens/linked_users_screen.dart';
 import '../bloc/settings_bloc.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -45,246 +46,116 @@ class SettingsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Configuración')),
+      backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        title: const Text('Configuración'), 
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20), 
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/dashboard');
+            }
+          }
+        )
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Notificaciones',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
+            _SectionTitle(title: 'Vinculación de Cuentas', icon: Icons.link_rounded),
+            const SizedBox(height: 16),
             BlocBuilder<NotificationBloc, NotificationState>(
               builder: (context, state) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (state.isLoading)
-                      const Center(child: YtLoader()),
-                    if (state.errorMessage != null)
-                      Text(
-                        state.errorMessage!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    if (state.notificationCode != null)
-                      YtCard(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Mi Código de Notificaciones',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 16),
-                            Center(
-                              child: QrImageView(
-                                data: state.notificationCode!,
-                                version: QrVersions.auto,
-                                size: 180.0,
-                                backgroundColor: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Center(
-                              child: Text(
-                                state.notificationCode!,
-                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF00BFA5)),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: YtButton(
-                                    label: 'Copiar',
-                                    onPressed: () async {
-                                      await Clipboard.setData(ClipboardData(text: state.notificationCode!));
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Código copiado al portapapeles')),
-                                        );
-                                      }
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: YtButton(
-                                    label: 'Compartir',
-                                    isSecondary: true,
-                                    onPressed: () {
-                                      Share.share(
-                                        '¡Usa mi código de vinculación de SonoPay para recibir alertas de pagos en tiempo real!\n\nCódigo: ${state.notificationCode!}',
-                                        subject: 'Mi código de vinculación de SonoPay',
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            YtButton(
-                              label: 'Usuarios Vinculados',
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const LinkedUsersScreen()),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 32),
-            const Divider(),
-            const SizedBox(height: 24),
-            const Text(
-              'Gestión de Historial',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Configura cuánto tiempo deseas conservar el historial de pagos en el dispositivo.',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            BlocBuilder<SettingsBloc, SettingsState>(
-              builder: (context, state) {
-                return YtCard(
+                if (state.isLoading) return const Center(child: YtLoader());
+                if (state.notificationCode == null) return const Text('No se pudo generar el código.');
+                
+                return SoftCard(
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      ListTile(
-                        title: const Text('Conservar historial por:'),
-                        subtitle: Text(state.retentionDays == 0 ? 'Siempre' : '${state.retentionDays} días'),
-                        trailing: const Icon(Icons.history_toggle_off),
-                        onTap: () => _showRetentionDialog(context, state.retentionDays),
+                      const Text('Mi Código de Socio', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white, 
+                          borderRadius: BorderRadius.circular(20), 
+                          border: Border.all(color: AppTheme.surfaceColor, width: 2)
+                        ),
+                        child: QrImageView(data: state.notificationCode!, size: 140, version: QrVersions.auto),
                       ),
+                      const SizedBox(height: 16),
+                      Text(state.notificationCode!, style: Theme.of(context).textTheme.headlineMedium?.copyWith(letterSpacing: 3, color: AppTheme.textPrimary)),
+                      const SizedBox(height: 24),
+                      Row(children: [
+                        Expanded(child: AppButton(label: 'Copiar', isSecondary: true, onPressed: () => Clipboard.setData(ClipboardData(text: state.notificationCode!)))),
+                        const SizedBox(width: 12),
+                        Expanded(child: AppButton(label: 'Compartir', onPressed: () => Share.share('Vincula tu SonoPay con mi código: ${state.notificationCode!}'))),
+                      ]),
                     ],
                   ),
                 );
               },
             ),
-            const SizedBox(height: 32),
-            const Divider(),
-            const SizedBox(height: 24),
-            const Text(
-              'Notificaciones Secundarias',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            const SizedBox(height: 40),
+            _SectionTitle(title: 'Preferencias de Historial', icon: Icons.history_rounded),
+            const SizedBox(height: 16),
+            BlocBuilder<SettingsBloc, SettingsState>(
+              builder: (context, state) => SoftCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  title: const Text('Limpieza automática', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(state.retentionDays == 0 ? 'Nunca borrar' : 'Borrar cada ${state.retentionDays} días'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _showRetentionDialog(context),
+                ),
+              ),
             ),
+            const SizedBox(height: 40),
+            _SectionTitle(title: 'Alertas WhatsApp', icon: Icons.message_rounded),
             const SizedBox(height: 8),
-            const Text(
-              'Los pagos detectados se enviarán también a estos números vía WhatsApp.',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            YtButton(
-              label: 'Agregar Número',
-              onPressed: () => _showAddNumberDialog(context),
-            ),
+            const Text('Envía alertas de pago a números adicionales.', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+            const SizedBox(height: 16),
+            AppButton(label: 'Agregar nuevo número', icon: Icons.add_circle_outline_rounded, onPressed: () => _showAddNumberDialog(context)),
             const SizedBox(height: 24),
             BlocBuilder<SettingsBloc, SettingsState>(
               builder: (context, state) {
                 if (state.isLoading) return const Center(child: YtLoader());
-                if (state.secondaryNumbers.isEmpty) {
-                  return const Center(child: Text('No hay números guardados'));
-                }
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+                if (state.secondaryNumbers.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('Sin números registrados', style: TextStyle(color: AppTheme.textPlaceholder))));
+                return ListView.separated(
+                  shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                   itemCount: state.secondaryNumbers.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
-                    final item = state.secondaryNumbers[index];
-                    return YtCard(
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          item.type == 'whatsapp' ? Icons.chat : Icons.send,
-                          color: item.type == 'whatsapp' ? Colors.green : Colors.blue,
-                        ),
-                        title: Text(item.phoneNumber),
-                        subtitle: Text(item.type.toUpperCase()),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () {
-                            context.read<SettingsBloc>().add(DeleteSecondaryNumber(item.id));
-                          },
-                        ),
-                      ),
-                    );
+                    final num = state.secondaryNumbers[index];
+                    return SoftCard(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), borderRadius: 16, child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: ClayContainer(width: 40, height: 40, borderRadius: 10, color: const Color(0xFFE8F5E9), child: const Icon(Icons.chat_rounded, color: Colors.green, size: 20)),
+                      title: Text(num.phoneNumber, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      trailing: IconButton(icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.errorColor), onPressed: () => context.read<SettingsBloc>().add(DeleteSecondaryNumber(num.id))),
+                    ));
                   },
                 );
               },
             ),
+            const SizedBox(height: 60),
           ],
         ),
       ),
     );
   }
 
-  void _showAddNumberDialog(BuildContext context) {
-    final controller = TextEditingController();
-    String selectedType = 'whatsapp';
-    final settingsBloc = context.read<SettingsBloc>();
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Nuevo Número'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              YtTextField(
-                controller: controller,
-                label: 'Número de Celular',
-                hintText: 'Ej. 51999888777',
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: selectedType,
-                decoration: const InputDecoration(labelText: 'Plataforma'),
-                items: const [
-                  DropdownMenuItem(value: 'whatsapp', child: Text('WhatsApp')),
-                  DropdownMenuItem(value: 'telegram', child: Text('Telegram')),
-                ],
-                onChanged: (val) => setState(() => selectedType = val!),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (controller.text.isNotEmpty) {
-                  settingsBloc.add(AddSecondaryNumber(controller.text, selectedType));
-                  Navigator.pop(dialogContext);
-                }
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showRetentionDialog(BuildContext context, int currentDays) {
+  void _showRetentionDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Duración del Historial'),
+        backgroundColor: AppTheme.backgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Text('Duración del Historial', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -301,7 +172,7 @@ class SettingsView extends StatelessWidget {
 
   Widget _retentionOption(BuildContext context, String label, int days) {
     return ListTile(
-      title: Text(label),
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
       onTap: () {
         context.read<SettingsBloc>().add(UpdateRetentionDays(days));
         Navigator.pop(context);
@@ -311,4 +182,75 @@ class SettingsView extends StatelessWidget {
       },
     );
   }
+
+  void _showAddNumberDialog(BuildContext context) {
+    final controller = TextEditingController();
+    String selectedType = 'whatsapp';
+    final settingsBloc = context.read<SettingsBloc>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: AppTheme.backgroundColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          title: const Text('Nuevo Número', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              YtTextField(
+                controller: controller,
+                label: 'Número de Celular',
+                hintText: 'Ej. 51999888777',
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+                child: Text('Plataforma', style: Theme.of(context).textTheme.labelMedium),
+              ),
+              ClayContainer(
+                color: AppTheme.surfaceColor,
+                borderRadius: 16,
+                isPressed: true,
+                shadowIntensity: 0.3,
+                child: DropdownButtonFormField<String>(
+                  initialValue: selectedType,
+                  decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 20)),
+                  items: const [
+                    DropdownMenuItem(value: 'whatsapp', child: Text('WhatsApp')),
+                    DropdownMenuItem(value: 'telegram', child: Text('Telegram')),
+                  ],
+                  onChanged: (val) => setState(() => selectedType = val!),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: const Color(0xFF3D2E00)),
+              onPressed: () {
+                if (controller.text.isNotEmpty) {
+                  settingsBloc.add(AddSecondaryNumber(controller.text, selectedType));
+                  Navigator.pop(dialogContext);
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title; final IconData icon;
+  const _SectionTitle({required this.title, required this.icon});
+  @override
+  Widget build(BuildContext context) => Row(children: [Icon(icon, size: 20, color: AppTheme.textSecondary), const SizedBox(width: 10), Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900))]);
 }

@@ -1,54 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:ui';
 
 class AppTheme {
-  // Paleta Claymorphism Amarilla
-  static const Color backgroundColor = Color(0xFFFFF4CC);
+  static const Color backgroundColor = Color(0xFFFFFDF5);
+  static const Color surfaceColor = Color(0xFFFFF4CC);
   static const Color primaryColor = Color(0xFFFFC93C);
   static const Color secondaryColor = Color(0xFFFFDE7D);
-  static const Color surfaceColor = Color(0xFFFFFDF5);
-  
-  static const Color textPrimary = Color(0 sneak4A3B00);
-  static const Color textSecondary = Color(0xFF7A5C00);
-  
+  static const Color textPrimary = Color(0xFF2D2100);
+  static const Color textSecondary = Color(0xFF8A7A4A);
+  static const Color textPlaceholder = Color(0xFFB0A070);
   static const Color successColor = Color(0xFF6FCF97);
   static const Color errorColor = Color(0xFFE85D5D);
 
-  // Sombras Clay
   static List<BoxShadow> clayShadow({
     required Color baseColor,
     bool isPressed = false,
+    double intensity = 1.0,
   }) {
     if (isPressed) {
       return [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.1),
-          offset: const Offset(4, 4),
-          blurRadius: 10,
-          spreadRadius: -2,
+          color: Colors.black.withOpacity(0.05 * intensity),
+          offset: const Offset(2, 2),
+          blurRadius: 4,
+          spreadRadius: 1,
         ),
         BoxShadow(
-          color: Colors.white.withValues(alpha: 0.7),
-          offset: const Offset(-4, -4),
-          blurRadius: 10,
+          color: Colors.white.withOpacity(0.5 * intensity),
+          offset: const Offset(-2, -2),
+          blurRadius: 4,
         ),
       ];
     }
     
     return [
       BoxShadow(
-        color: Colors.white.withValues(alpha: 0.6),
-        offset: const Offset(-6, -6),
-        blurRadius: 12,
+        color: Colors.white.withOpacity(0.8 * intensity),
+        offset: const Offset(-5, -5),
+        blurRadius: 10,
       ),
       BoxShadow(
-        color: Color.lerp(baseColor, Colors.black, 0.3)!.withValues(alpha: 0.3),
-        offset: const Offset(6, 6),
-        blurRadius: 14,
+        color: Color.lerp(baseColor, Colors.black, 0.2)!.withOpacity(0.15 * intensity),
+        offset: const Offset(5, 5),
+        blurRadius: 12,
       ),
     ];
   }
+
+  static ThemeData get darkTheme => lightTheme;
 
   static ThemeData get lightTheme {
     final baseTextTheme = GoogleFonts.plusJakartaSansTextTheme();
@@ -66,14 +65,24 @@ class AppTheme {
       ),
       textTheme: baseTextTheme.copyWith(
         displayLarge: GoogleFonts.plusJakartaSans(
-          fontSize: 36,
-          fontWeight: FontWeight.bold,
+          fontSize: 34,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -0.5,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
+        headlineMedium: GoogleFonts.plusJakartaSans(
+          fontSize: 26,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
         titleLarge: GoogleFonts.plusJakartaSans(
           fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
+        titleMedium: GoogleFonts.plusJakartaSans(
+          fontSize: 16,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
@@ -85,6 +94,11 @@ class AppTheme {
         ),
         bodyMedium: GoogleFonts.plusJakartaSans(
           fontSize: 14,
+          color: textSecondary,
+        ),
+        labelMedium: GoogleFonts.plusJakartaSans(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
           color: textSecondary,
         ),
         labelSmall: GoogleFonts.plusJakartaSans(
@@ -104,5 +118,12 @@ class AppTheme {
         iconTheme: IconThemeData(color: textPrimary),
       ),
     );
+  }
+}
+
+extension ColorExtension on Color {
+  Color withValues({double? alpha}) {
+    if (alpha == null) return this;
+    return withOpacity(alpha);
   }
 }

@@ -26,11 +26,11 @@ class TokenManager {
 
   Future<bool> isTokenValid() async {
     final token = await getToken();
-    if (token == null) return false;
+    if (token == null || token.isEmpty) return false;
     try {
       return !JwtDecoder.isExpired(token);
     } catch (e) {
-      AppLogger.e('Invalid token format', e);
+      AppLogger.w('Token format is invalid, treating as unauthenticated.');
       return false;
     }
   }

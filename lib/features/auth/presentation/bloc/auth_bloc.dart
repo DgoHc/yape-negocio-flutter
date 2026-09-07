@@ -122,6 +122,10 @@ class ClearError extends AuthEvent {
   const ClearError();
 }
 
+class ResetAuthStatus extends AuthEvent {
+  const ResetAuthStatus();
+}
+
 class Subscribe extends AuthEvent {
   final PaymentProvider? provider;
   final double amount;
@@ -252,6 +256,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<Subscribe>(_onSubscribe);
     on<UpdateProfile>(_onUpdateProfile);
     on<ClearError>(_onClearError);
+    on<ResetAuthStatus>(_onResetAuthStatus);
+  }
+
+  void _onResetAuthStatus(ResetAuthStatus event, Emitter<AuthState> emit) {
+    emit(state.copyWith(status: AuthStatus.unauthenticated));
   }
 
   Future<void> _onAdminLoginRequested(AdminLoginRequested event, Emitter<AuthState> emit) async {
@@ -567,7 +576,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onGoogleLoginRequested(GoogleLoginRequested event, Emitter<AuthState> emit) async {
     AppLogger.d('AuthBloc: Google login requested');
-    emit(state.copyWith(status: AuthStatus.loading));
+    emit(state.copyWith(status: AuthStatus.loading, error: null));
     
     try {
       final googleUser = await _googleAuthService.signIn();
@@ -588,17 +597,32 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         await result.fold(
           (failure) async {
             AppLogger.e('AuthBloc: Google Login failed: ${failure.message}');
+            
+            // Si el error es de base de datos o credenciales, damos un mensaje claro
+            String userError = "Error al vincular cuenta de Google.";
+            if (failure.message.contains('database') || failure.message.contains('credentials')) {
+              userError = "Error de sincronización con el servidor. Por favor, intenta de nuevo en unos momentos.";
+            } else {
+              userError = failure.message;
+            }
+
             emit(state.copyWith(
               status: AuthStatus.unauthenticated,
-              error: "Error al vincular cuenta de Google: ${failure.message}",
+              error: userError,
             ));
           },
           (data) async {
             AppLogger.d('AuthBloc: Google Login successful for $email');
+            
+            // 1. Guardar token inmediatamente
+            await _userAuthRepository.saveToken(data.token);
+            
             final deviceIdEither = await _getDeviceIdUseCase(const NoParams());
             final deviceId = deviceIdEither.getOrElse(() => null);
             
             final profile = data.profile.copyWith(uuid: deviceId);
+            
+            // 2. Guardar perfil localmente
             await _userProfileRepository.saveProfile(profile);
             
             if (deviceId != null) {
@@ -609,16 +633,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             AuthStatus nextStatus;
             if (!profile.hasAccess) {
               nextStatus = AuthStatus.needsSubscription;
-            } else if (profile.businessType == null) {
-              nextStatus = AuthStatus.authenticatedDriver;
             } else {
               nextStatus = AuthStatus.authenticatedDriver;
             }
 
+            AppLogger.i('AuthBloc: Moving to state $nextStatus');
             emit(state.copyWith(
               status: nextStatus,
               userProfile: profile,
               deviceId: deviceId,
+              error: null,
             ));
           },
         );
@@ -630,7 +654,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       AppLogger.e('AuthBloc: Critical error in Google login', e, stack);
       emit(state.copyWith(
         status: AuthStatus.unauthenticated,
-        error: "Detalle técnico Google: $e",
+        error: "No se pudo completar el inicio de sesión con Google. Revisa tu conexión.",
       ));
     }
   }

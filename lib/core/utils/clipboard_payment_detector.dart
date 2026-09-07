@@ -6,6 +6,7 @@ import '../../features/notifications/domain/entities/payment_data.dart';
 import '../../features/notifications/domain/parsers/payment_parser.dart';
 import '../../features/payments/presentation/bloc/payments_bloc.dart';
 import '../widgets/yt_design_system.dart';
+import '../theme/app_theme.dart';
 import '../di/injection_container.dart';
 import '../utils/app_logger.dart';
 
@@ -22,18 +23,13 @@ class ClipboardPaymentDetector {
 
       final text = data.text!.trim();
       
-      // Evitar procesar el mismo texto repetidamente en la misma sesión
       if (text == _lastCheckedText) return;
       _lastCheckedText = text;
 
-      // Intentar parsear
       final result = PaymentParser.parse(text);
       result.fold(
-        (failure) {
-          // No es un formato de pago válido, ignorar
-        },
+        (failure) {},
         (payment) {
-          // Es un pago válido! Mostrar BottomSheet elegante para confirmación
           _showConfirmationBottomSheet(context, payment);
         },
       );
@@ -48,19 +44,12 @@ class ClipboardPaymentDetector {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (bottomSheetContext) {
-        final theme = Theme.of(context);
-        final isDark = theme.brightness == Brightness.dark;
-
         return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF151026) : Colors.white,
-            borderRadius: const BorderRadius.only(
+          decoration: const BoxDecoration(
+            color: AppTheme.backgroundColor,
+            borderRadius: BorderRadius.only(
               topLeft: Radius.circular(32),
               topRight: Radius.circular(32),
-            ),
-            border: Border.all(
-              color: isDark ? const Color(0xFF7C4DFF).withValues(alpha: 0.2) : Colors.grey.shade200,
-              width: 1.5,
             ),
           ),
           padding: EdgeInsets.only(
@@ -78,7 +67,7 @@ class ClipboardPaymentDetector {
                   width: 48,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: AppTheme.textPlaceholder.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -89,12 +78,12 @@ class ClipboardPaymentDetector {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00E676).withValues(alpha: 0.15),
+                      color: AppTheme.successColor.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.check_circle_outline,
-                      color: Color(0xFF00E676),
+                      color: AppTheme.successColor,
                       size: 28,
                     ),
                   ),
@@ -103,19 +92,18 @@ class ClipboardPaymentDetector {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Pago Detectado (SonoPay)',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
                           ),
                         ),
-                        const Text(
+                        Text(
                           'Encontrado en el portapapeles',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey,
+                            color: AppTheme.textSecondary,
                           ),
                         ),
                       ],
@@ -127,35 +115,18 @@ class ClipboardPaymentDetector {
               YtCard(
                 child: Column(
                   children: [
-                    _buildDetailRow(
-                      context,
-                      'Remitente:',
-                      payment.senderName,
-                      isTitle: true,
-                    ),
+                    _buildDetailRow(context, 'Remitente:', payment.senderName, isTitle: true),
                     const Divider(height: 24),
                     _buildDetailRow(
                       context,
                       'Monto:',
                       'S/ ${payment.amount.toStringAsFixed(2)}',
-                      valueColor: const Color(0xFF00E676),
+                      valueColor: AppTheme.successColor,
                       isBoldValue: true,
                     ),
                     if (payment.operationNumber != null) ...[
                       const Divider(height: 24),
-                      _buildDetailRow(
-                        context,
-                        'N° Operación:',
-                        payment.operationNumber!,
-                      ),
-                    ],
-                    if (payment.time != null) ...[
-                      const Divider(height: 24),
-                      _buildDetailRow(
-                        context,
-                        'Hora:',
-                        payment.time!,
-                      ),
+                      _buildDetailRow(context, 'N° Operación:', payment.operationNumber!),
                     ],
                   ],
                 ),
@@ -164,7 +135,7 @@ class ClipboardPaymentDetector {
               Row(
                 children: [
                   Expanded(
-                    child: YtButton(
+                    child: AppButton(
                       label: 'Ignorar',
                       isSecondary: true,
                       onPressed: () => Navigator.pop(bottomSheetContext),
@@ -172,15 +143,15 @@ class ClipboardPaymentDetector {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: YtButton(
+                    child: AppButton(
                       label: 'Registrar',
                       onPressed: () {
                         context.read<PaymentsBloc>().add(SaveManualPayment(payment));
                         Navigator.pop(bottomSheetContext);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Pago de ${payment.senderName} registrado con éxito'),
-                            backgroundColor: const Color(0xFF00E676),
+                            content: Text('Pago de ${payment.senderName} registrado'),
+                            backgroundColor: AppTheme.successColor,
                           ),
                         );
                       },
@@ -203,23 +174,16 @@ class ClipboardPaymentDetector {
     Color? valueColor,
     bool isBoldValue = false,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: isDark ? Colors.white60 : Colors.black54,
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
         Text(
           value,
           style: TextStyle(
             fontSize: isTitle ? 16 : 14,
             fontWeight: isTitle || isBoldValue ? FontWeight.bold : FontWeight.normal,
-            color: valueColor ?? (isDark ? Colors.white : Colors.black87),
+            color: valueColor ?? AppTheme.textPrimary,
           ),
         ),
       ],

@@ -132,7 +132,7 @@ class AppRouter {
           return '/notification-onboarding';
         }
         
-        if (authState.status == AuthStatus.needsVerification && !isVerifyEmail) {
+        if (authState.status == AuthStatus.needsVerification && !isVerifyEmail && !isRegister) {
           return '/verify-email';
         }
 
@@ -142,22 +142,22 @@ class AppRouter {
       // 1. Auth states logic
       switch (authState.status) {
         case AuthStatus.initial:
-          return isWelcome || isOptions || isLogin || isRegister ? null : '/';
+          return isWelcome || isOptions || isLogin || isRegister || isAdminLogin ? null : '/';
           
         case AuthStatus.needsVerification:
-          return isVerifyEmail ? null : '/verify-email';
+          return isVerifyEmail || isRegister ? null : '/verify-email';
 
         case AuthStatus.noAccess:
         case AuthStatus.needsSubscription:
           // Permitir ir atrás al welcome o opciones si está en este estado
-          if (isWelcome || isOptions || isSubscription) return null;
+          if (isWelcome || isOptions || isSubscription || isLogin || isRegister) return null;
           return '/subscription';
           
         case AuthStatus.needsRegistration:
           return isRegister ? null : '/register';
           
         case AuthStatus.unauthenticated:
-          return isWelcome || isOptions || isLogin || isAdminLogin ? null : '/';
+          return isWelcome || isOptions || isLogin || isRegister || isAdminLogin ? null : '/';
           
         case AuthStatus.authenticatedAdmin:
           // Solo forzar redirect si intenta acceder a rutas de login/registro o dashboard de driver

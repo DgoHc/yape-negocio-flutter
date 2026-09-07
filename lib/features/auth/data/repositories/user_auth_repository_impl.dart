@@ -146,4 +146,9 @@ class UserAuthRepositoryImpl implements UserAuthRepository {
       },
     );
   }
+
+  @override
+  Future<void> saveToken(String token) async {
+    await _tokenManager.saveToken(token);
+  }
 }

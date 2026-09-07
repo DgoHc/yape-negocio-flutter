@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/yt_design_system.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../bloc/auth_bloc.dart';
 
 class UserRegistrationScreen extends StatelessWidget {
@@ -10,31 +11,45 @@ class UserRegistrationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Registro'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
-      ),
+      backgroundColor: AppTheme.backgroundColor,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state.status == AuthStatus.needsSubscription) {
-            context.go('/subscription');
-          } else if (state.status == AuthStatus.needsVerification) {
-            context.go('/verify-email');
-          } else if (state.error != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.error!), backgroundColor: Colors.red),
-            );
+          if (state.status == AuthStatus.needsSubscription) context.go('/subscription');
+          else if (state.status == AuthStatus.needsVerification) context.go('/verify-email');
+          else if (state.error != null) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error!), backgroundColor: AppTheme.errorColor));
             context.read<AuthBloc>().add(const ClearError());
           }
         },
-        child: const SafeArea(
-          child: Padding(
-            padding: EdgeInsets.all(24.0),
-            child: _RegistrationForm(),
-          ),
+        child: Stack(
+          children: [
+            const BrandBlobHeader(height: 250, child: SizedBox.shrink()),
+            
+            // Cuerpo del Formulario
+            SafeArea(
+              child: _RegistrationForm(),
+            ),
+
+            // BOTÓN REGRESAR MANUAL - Siempre encima de todo
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 10, 
+              left: 10,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(30),
+                  onTap: () {
+                    context.read<AuthBloc>().add(const ResetAuthStatus());
+                    context.go('/');
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.textPrimary, size: 24),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -43,51 +58,45 @@ class UserRegistrationScreen extends StatelessWidget {
 
 class _RegistrationForm extends StatefulWidget {
   const _RegistrationForm();
-
   @override
   State<_RegistrationForm> createState() => _RegistrationFormState();
 }
 
 class _RegistrationFormState extends State<_RegistrationForm> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _passwordConfirmController = TextEditingController();
-  final _phoneController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _passwordController;
+  late final TextEditingController _passwordConfirmController;
+  late final TextEditingController _phoneController;
   String? _selectedBusinessType;
 
-  // Opciones de rubro
-  final List<String> _businessTypes = [
-    'Transporte',
-    'Comercio',
-    'Restaurante',
-    'Servicios',
-    'Librería',
-    'Otro'
-  ];
+  @override
+  void initState() {
+    super.initState();
+    final profile = context.read<AuthBloc>().state.userProfile;
+    _nameController = TextEditingController(text: profile?.name);
+    _emailController = TextEditingController(text: profile?.email);
+    _passwordController = TextEditingController();
+    _passwordConfirmController = TextEditingController();
+    _phoneController = TextEditingController(text: profile?.phone);
+    _selectedBusinessType = profile?.businessType;
+  }
+
+  final List<String> _businessTypes = ['Transporte', 'Comercio', 'Restaurante', 'Servicios', 'Librería', 'Otro'];
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _passwordConfirmController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
+  void dispose() { _nameController.dispose(); _emailController.dispose(); _passwordController.dispose(); _passwordConfirmController.dispose(); _phoneController.dispose(); super.dispose(); }
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      context.read<AuthBloc>().add(
-            RegisterUser(
-              name: _nameController.text,
-              email: _emailController.text,
-              password: _passwordController.text,
-              phone: _phoneController.text.isNotEmpty ? _phoneController.text : null,
-              businessType: _selectedBusinessType,
-            ),
-          );
+      context.read<AuthBloc>().add(RegisterUser(
+            name: _nameController.text.trim(),
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            phone: _phoneController.text.isNotEmpty ? _phoneController.text.trim() : null,
+            businessType: _selectedBusinessType,
+          ));
     }
   }
 
@@ -98,128 +107,35 @@ class _RegistrationFormState extends State<_RegistrationForm> {
         return Form(
           key: _formKey,
           child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(32.0, 80.0, 32.0, 32.0), // Padding top para no tapar el botón back
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Crea tu cuenta',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                const SizedBox(height: 20),
+                Text('Únete a SonoPay', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                Text('Gestiona tus pagos de forma profesional', style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: 40),
-                YtTextField(
-                  controller: _nameController,
-                  label: 'Nombre completo',
-                  hintText: 'Tu nombre',
-                  prefixIcon: Icons.person,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingresa tu nombre';
-                    }
-                    return null;
-                  },
-                ),
+                YtTextField(controller: _nameController, label: 'Nombre Completo', hintText: 'Ej. Juan Pérez', prefixIcon: Icons.person_outline, validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null),
                 const SizedBox(height: 20),
-                YtTextField(
-                  controller: _phoneController,
-                  label: 'Teléfono',
-                  hintText: '999888777',
-                  prefixIcon: Icons.phone,
-                  keyboardType: TextInputType.phone,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingresa tu teléfono';
-                    }
-                    return null;
-                  },
-                ),
+                YtTextField(controller: _phoneController, label: 'Teléfono (Opcional)', hintText: '999 888 777', prefixIcon: Icons.phone_android_outlined, keyboardType: TextInputType.phone),
                 const SizedBox(height: 20),
-                YtTextField(
-                  controller: _emailController,
-                  label: 'Correo electrónico',
-                  hintText: 'correo@ejemplo.com',
-                  prefixIcon: Icons.email,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingresa tu correo electrónico';
-                    }
-                    // Simple email validation
-                    final emailRegex = RegExp(r'^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$');
-                    if (!emailRegex.hasMatch(value)) {
-                      return 'Por favor ingresa un correo válido';
-                    }
-                    return null;
-                  },
-                ),
+                YtTextField(controller: _emailController, label: 'Correo Electrónico', hintText: 'tu@correo.com', prefixIcon: Icons.email_outlined, keyboardType: TextInputType.emailAddress, validator: (v) => (v == null || v.isEmpty) ? 'Campo requerido' : (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(v) ? 'Correo inválido' : null)),
                 const SizedBox(height: 20),
-                // Selector de rubro
                 DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    labelText: 'Rubro / Tipo de negocio',
-                    hintText: 'Selecciona tu rubro',
-                    prefixIcon: const Icon(Icons.store),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                  ),
-                  initialValue: _selectedBusinessType,
-                  items: _businessTypes.map((type) {
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(type),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedBusinessType = value;
-                    });
-                  },
+                  decoration: const InputDecoration(labelText: 'Rubro / Tipo de negocio', prefixIcon: Icon(Icons.storefront_outlined), border: InputBorder.none),
+                  value: _selectedBusinessType,
+                  items: _businessTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                  onChanged: (v) => setState(() => _selectedBusinessType = v),
+                  validator: (v) => v == null ? 'Selecciona un rubro' : null,
                 ),
                 const SizedBox(height: 20),
-                YtTextField(
-                  controller: _passwordController,
-                  label: 'Contraseña',
-                  hintText: 'Tu contraseña',
-                  prefixIcon: Icons.lock,
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingresa tu contraseña';
-                    }
-                    if (value.length < 6) {
-                      return 'La contraseña debe tener al menos 6 caracteres';
-                    }
-                    return null;
-                  },
-                ),
+                YtTextField(controller: _passwordController, label: 'Contraseña', hintText: 'Mínimo 6 caracteres', prefixIcon: Icons.lock_outline, obscureText: true, validator: (v) => v == null || v.length < 6 ? 'Mínimo 6 caracteres' : null),
                 const SizedBox(height: 20),
-                YtTextField(
-                  controller: _passwordConfirmController,
-                  label: 'Confirmar contraseña',
-                  hintText: 'Confirma tu contraseña',
-                  prefixIcon: Icons.lock,
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor confirma tu contraseña';
-                    }
-                    if (value != _passwordController.text) {
-                      return 'Las contraseñas no coinciden';
-                    }
-                    return null;
-                  },
-                ),
+                YtTextField(controller: _passwordConfirmController, label: 'Confirmar Contraseña', hintText: 'Repite tu contraseña', prefixIcon: Icons.lock_clock_outlined, obscureText: true, validator: (v) => v != _passwordController.text ? 'No coinciden' : null),
                 const SizedBox(height: 40),
-                YtButton(
-                  label: 'Continuar',
-                  onPressed: state.status == AuthStatus.loading ? null : _submit,
-                  isLoading: state.status == AuthStatus.loading,
-                ),
+                AppButton(label: 'Registrarme', isLoading: state.status == AuthStatus.loading, onPressed: _submit),
+                const SizedBox(height: 40),
               ],
             ),
           ),

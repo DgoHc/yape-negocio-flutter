@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.novabytex.aplicativo"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36 // Actualizado a 36 para compatibilidad con plugins recientes
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -30,8 +30,8 @@ android {
 
     defaultConfig {
         applicationId = "com.novabytex.aplicativo"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 24 
+        targetSdk = 36 // CUMPLIENDO REQUISITO DE GOOGLE PLAY API 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -48,13 +48,9 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }

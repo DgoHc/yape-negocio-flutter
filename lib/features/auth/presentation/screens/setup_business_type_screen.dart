@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/yt_design_system.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../bloc/auth_bloc.dart';
 
 class SetupBusinessTypeScreen extends StatelessWidget {
@@ -11,13 +12,7 @@ class SetupBusinessTypeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configura tu negocio'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
-      ),
+      backgroundColor: AppTheme.backgroundColor,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state.status == AuthStatus.authenticatedDriver) {
@@ -26,11 +21,26 @@ class SetupBusinessTypeScreen extends StatelessWidget {
             context.go('/subscription');
           }
         },
-        child: const SafeArea(
-          child: Padding(
-            padding: EdgeInsets.all(24.0),
-            child: _BusinessTypeForm(),
-          ),
+        child: Stack(
+          children: [
+            const BrandBlobHeader(height: 250, isDashboard: true, child: SizedBox.shrink()),
+            SafeArea(
+              child: _BusinessTypeForm(),
+            ),
+            // BOTÓN REGRESAR MANUAL
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 10, 
+              left: 10,
+              child: Material(
+                color: Colors.transparent,
+                child: IconButton(
+                  padding: const EdgeInsets.all(12),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 24),
+                  onPressed: () => context.go('/'),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -47,7 +57,6 @@ class _BusinessTypeForm extends StatefulWidget {
 class _BusinessTypeFormState extends State<_BusinessTypeForm> {
   String? _selectedBusinessType;
 
-  // Opciones de rubro
   final List<String> _businessTypes = [
     'Transporte',
     'Comercio',
@@ -71,51 +80,53 @@ class _BusinessTypeFormState extends State<_BusinessTypeForm> {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Selecciona tu rubro',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 100),
+              Text(
+                'Personaliza tu experiencia',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 40),
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: 'Rubro / Tipo de negocio',
-                hintText: 'Selecciona tu rubro',
-                prefixIcon: const Icon(Icons.store),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 12),
+              Text(
+                'Selecciona el rubro de tu negocio para adaptar las herramientas.',
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+              Padding(
+                padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+                child: Text('Rubro / Tipo de negocio', style: Theme.of(context).textTheme.labelMedium),
+              ),
+              ClayContainer(
+                color: AppTheme.surfaceColor,
+                borderRadius: 16,
+                isPressed: true,
+                shadowIntensity: 0.4,
+                child: DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.store_outlined, color: Color(0xFFB8930A), size: 20),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  hint: const Text('Elige una opción', style: TextStyle(color: AppTheme.textPlaceholder)),
+                  value: _selectedBusinessType,
+                  items: _businessTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+                  onChanged: (value) => setState(() => _selectedBusinessType = value),
                 ),
-                filled: true,
               ),
-              initialValue: _selectedBusinessType,
-              items: _businessTypes.map((type) {
-                return DropdownMenuItem(
-                  value: type,
-                  child: Text(type),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedBusinessType = value;
-                });
-              },
-            ),
-            const SizedBox(height: 40),
-            YtButton(
-              label: 'Continuar',
-              onPressed: state.status == AuthStatus.loading ||
-                      _selectedBusinessType == null
-                  ? null
-                  : _submit,
-              isLoading: state.status == AuthStatus.loading,
-            ),
-          ],
+              const SizedBox(height: 60),
+              AppButton(
+                label: 'Finalizar Configuración',
+                onPressed: state.status == AuthStatus.loading || _selectedBusinessType == null ? null : _submit,
+                isLoading: state.status == AuthStatus.loading,
+              ),
+            ],
+          ),
         );
       },
     );

@@ -4,6 +4,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/widgets/yt_design_system.dart';
 import '../../data/notification_platform_service.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class NotificationOnboardingScreen extends StatefulWidget {
   const NotificationOnboardingScreen({super.key});
@@ -49,7 +50,6 @@ class _NotificationOnboardingScreenState extends State<NotificationOnboardingScr
         _isLoading = false;
       });
       
-      // Si el permiso de notificación está activo, ya podemos ir al dashboard
       if (notification) {
         context.go('/dashboard');
       }
@@ -59,10 +59,14 @@ class _NotificationOnboardingScreenState extends State<NotificationOnboardingScr
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: YtLoader()));
+      return Scaffold(
+        backgroundColor: AppTheme.backgroundColor,
+        body: const Center(child: YtLoader())
+      );
     }
 
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Configuración de Captura'),
         backgroundColor: Colors.transparent,
@@ -73,22 +77,21 @@ class _NotificationOnboardingScreenState extends State<NotificationOnboardingScr
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.notifications_active_rounded, size: 80, color: Color(0xFF7C4DFF)),
+            const Icon(Icons.notifications_active_rounded, size: 80, color: AppTheme.primaryColor),
             const SizedBox(height: 32),
-            const Text(
+            Text(
               'Activa SonoPay para Yape',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             const Text(
               'Para que SonoPay pueda detectar tus pagos automáticamente, necesitamos acceso a tus notificaciones.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 40),
             
-            // Permiso 1: Notificaciones
             _PermissionTile(
               title: 'Acceso a Notificaciones',
               subtitle: 'Necesario para detectar el aviso de pago en tiempo real.',
@@ -98,7 +101,7 @@ class _NotificationOnboardingScreenState extends State<NotificationOnboardingScr
             
             const Spacer(),
             
-            YtButton(
+            AppButton(
               label: 'Ir al Dashboard',
               isSecondary: true,
               onPressed: () => context.go('/dashboard'),
@@ -128,17 +131,17 @@ class _PermissionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      tileColor: isEnabled ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      tileColor: isEnabled ? AppTheme.successColor.withValues(alpha: 0.1) : AppTheme.textPlaceholder.withValues(alpha: 0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       leading: Icon(
         isEnabled ? Icons.check_circle : Icons.warning_amber_rounded,
-        color: isEnabled ? Colors.green : Colors.orange,
+        color: isEnabled ? AppTheme.successColor : Colors.orange,
         size: 32,
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
       trailing: isEnabled 
-        ? const Text('ACTIVO', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
+        ? const Text('ACTIVO', style: TextStyle(color: AppTheme.successColor, fontWeight: FontWeight.bold))
         : const Icon(Icons.arrow_forward_ios, size: 16),
       onTap: isEnabled ? null : onTap,
     );
