@@ -1,22 +1,13 @@
-# Flutter rules
--keep class io.flutter.app.** { *; }
--keep class io.flutter.plugin.** { *; }
--keep class io.flutter.util.** { *; }
--keep class io.flutter.view.** { *; }
--keep class io.flutter.** { *; }
--keep class io.flutter.plugins.** { *; }
+# Conservar todo lo relacionado con Google Play Services y Auth
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.firebase.** { *; }
+-keep class com.novabytex.aplicativo.** { *; }
 
-# Drift rules (if using sqlite3_flutter_libs)
--keep class org.sqlite.** { *; }
-
-# Dio rules
--keepattributes Signature, InnerClasses, EnclosingMethod
+# Mantener protocolos de red
+-keep class okhttp3.** { *; }
 -keep class retrofit2.** { *; }
--keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
--keepattributes AnnotationDefault
+-keep class com.dio.** { *; }
 
-# Workmanager rules
--keep class com.google.common.util.concurrent.ListenableFuture { *; }
-
-# Fix for Missing classes from com.google.android.play.core
--dontwarn com.google.android.play.core.**
+# Evitar errores de des-serialización de JSON
+-keepattributes Signature,AnnotationDefault,EnclosingMethod,InnerClasses
+-keep public class * extends com.novabytex.aplicativo.features.auth.data.dtos.** { *; }

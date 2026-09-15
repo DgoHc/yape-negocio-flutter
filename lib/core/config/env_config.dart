@@ -15,20 +15,8 @@ class EnvConfig {
   }
 
   static String get baseUrl {
-    final String url;
-    switch (environment) {
-      case Environment.prod:
-        url = 'https://api.novabytexrj.com/api';
-        break;
-      case Environment.qa:
-        url = 'https://qa-api.yape.pe/v1';
-        break;
-      default:
-        url = 'http://104.248.230.19:3000/api';
-    }
-    // ignore: avoid_print
-    print('🚀 SONOPAY_NETWORK: Conectando a $url');
-    return url;
+    // Forzamos HTTPS de producción para evitar bloqueos de Android en Release
+    return 'https://api.novabytexrj.com/api';
   }
 
   static int get connectTimeout => 60000; // 60 seconds

@@ -37,17 +37,6 @@ class _LoginScreenState extends State<LoginScreen> {
         body: Stack(
           children: [
             const BrandBlobHeader(height: 300, child: SizedBox.shrink()),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 10,
-              left: 10,
-              child: Material(
-                color: Colors.transparent,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.textPrimary, size: 24),
-                  onPressed: () => context.go('/'),
-                ),
-              ),
-            ),
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -90,6 +79,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 20),
                     ],
                   ),
+                ),
+              ),
+            ),
+            // BOTÓN REGRESAR MANUAL - Siempre al final para estar al frente
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 10,
+              left: 10,
+              child: Material(
+                color: Colors.transparent,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.textPrimary, size: 24),
+                  onPressed: () => context.go('/'),
                 ),
               ),
             ),

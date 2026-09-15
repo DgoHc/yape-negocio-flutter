@@ -11,15 +11,22 @@ class TokenManager {
   TokenManager(this._storage);
 
   Future<void> saveToken(String token) async {
-    await _storage.write(key: _tokenKey, value: token);
+    try {
+      await _storage.write(key: _tokenKey, value: token);
+    } catch (e) {
+      AppLogger.e('Critical error writing token, wiping storage', e);
+      await _storage.deleteAll();
+      await _storage.write(key: _tokenKey, value: token);
+    }
   }
 
   Future<String?> getToken() async {
     try {
       return await _storage.read(key: _tokenKey);
     } catch (e) {
-      AppLogger.e('Error reading secure token (possible BAD_DECRYPT). Clearing token.', e);
-      await deleteToken();
+      // Este catch captura el famoso BAD_DECRYPT de Android
+      AppLogger.e('BAD_DECRYPT detected. Secure storage is corrupted. Wiping...', e);
+      await _storage.deleteAll(); // Borrado nuclear para resetear el Keystore
       return null;
     }
   }
@@ -38,7 +45,11 @@ class TokenManager {
   Future<DateTime?> getExpirationDate() async {
     final token = await getToken();
     if (token == null) return null;
-    return JwtDecoder.getExpirationDate(token);
+    try {
+      return JwtDecoder.getExpirationDate(token);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<String?> getUserRole() async {
@@ -54,6 +65,10 @@ class TokenManager {
   }
 
   Future<void> deleteToken() async {
-    await _storage.delete(key: _tokenKey);
+    try {
+      await _storage.delete(key: _tokenKey);
+    } catch (e) {
+      await _storage.deleteAll();
+    }
   }
 }

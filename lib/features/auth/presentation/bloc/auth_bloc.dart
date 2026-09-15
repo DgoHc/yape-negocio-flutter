@@ -637,7 +637,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
               nextStatus = AuthStatus.authenticatedDriver;
             }
 
-            AppLogger.i('AuthBloc: Moving to state $nextStatus');
+            AppLogger.i('AuthBloc: Moving to state $nextStatus for user ${profile.email}');
+            
+            // Forzar una pequeña pausa para asegurar que el token se guardó en disco
+            await Future.delayed(const Duration(milliseconds: 200));
+            
             emit(state.copyWith(
               status: nextStatus,
               userProfile: profile,
@@ -647,14 +651,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           },
         );
       } else {
-        AppLogger.w('AuthBloc: Google Sign-In cancelled by user or configuration error');
-        emit(state.copyWith(status: AuthStatus.unauthenticated));
+        AppLogger.w('AuthBloc: Google Sign-In returned null (cancelled or config error)');
+        emit(state.copyWith(
+          status: AuthStatus.unauthenticated,
+          error: "No se seleccionó ninguna cuenta de Google.",
+        ));
       }
     } catch (e, stack) {
       AppLogger.e('AuthBloc: Critical error in Google login', e, stack);
+      String rawError = e.toString();
+      String userMessage = "Error de Google";
+
+      if (rawError.contains('10')) {
+        userMessage = "Firma SHA-1 autorizada. Si persiste, borra caché de Google Play Services.";
+      } else if (rawError.contains('12500')) {
+        userMessage = "Revisar configuración de soporte en Firebase.";
+      }
+
       emit(state.copyWith(
         status: AuthStatus.unauthenticated,
-        error: "No se pudo completar el inicio de sesión con Google. Revisa tu conexión.",
+        error: "$userMessage\n(Detalle: $rawError)",
       ));
     }
   }

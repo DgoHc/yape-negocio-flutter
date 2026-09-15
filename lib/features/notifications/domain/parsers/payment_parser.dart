@@ -31,6 +31,16 @@ class PaymentParser {
     RegExp(r"Has\s+recibido\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+de\s+(.+)", caseSensitive: false),
     // Formato Directo: [Nombre] - S/ [Monto]
     RegExp(r"^(.+?)\s*[-–]\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)$", caseSensitive: false),
+
+    // --- FORMATOS DE PLIN ---
+    // BBVA / Plin: ¡Recibiste un Plin! [Nombre] te envió S/ [Monto]
+    RegExp(r"(?:Recibiste\s+un\s+Plin!?)\s+(.+?)\s+te\s+envió\s+(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
+    // Scotiabank: Plin: Has recibido S/ [Monto] de [Nombre]
+    RegExp(r"Plin:?\s+Has\s+recibido\s+(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+de\s+(.+)", caseSensitive: false),
+    // Interbank: [Nombre] te envió un Plin por S/ [Monto]
+    RegExp(r"(.+?)\s+te\s+envió\s+un\s+Plin\s+por\s+(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
+    // Genérico Plin: Plin de [Nombre] por S/ [Monto]
+    RegExp(r"Plin\s+de\s+(.+?)\s+por\s+(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
   ];
 
   static Either<Failure, PaymentData> parse(String raw) {
@@ -51,20 +61,30 @@ class PaymentParser {
     for (final regex in _incomingPaymentRegexes) {
       final match = regex.firstMatch(cleanRaw);
       if (match != null) {
-        if (regex.pattern.contains('Has\\\\s+recibido')) {
-          currency = match.group(1)?.trim() ?? "S/";
-          final amountStr = match.group(2)?.replaceAll(',', '.').trim() ?? "0";
-          amount = double.tryParse(amountStr);
-          senderName = match.group(3)?.trim();
+        // Lógica especial para formatos donde el nombre está al final (Scotiabank)
+        if (regex.pattern.contains('de\\\\s+\\(.+\\)') || regex.pattern.contains('de\\\\s+\\.\\+')) {
+           if (regex.pattern.contains('Plin')) {
+             // Scotiabank Plin: [Monto] de [Nombre]
+             final amountStr = match.group(1)?.replaceAll(',', '.').trim() ?? "0";
+             amount = double.tryParse(amountStr);
+             senderName = match.group(2)?.trim();
+           } else {
+             // Formato 5 de Yape
+             currency = match.group(1)?.trim() ?? "S/";
+             final amountStr = match.group(2)?.replaceAll(',', '.').trim() ?? "0";
+             amount = double.tryParse(amountStr);
+             senderName = match.group(3)?.trim();
+           }
         } else {
           senderName = match.group(1)?.trim();
           if (match.groupCount >= 2) {
-             // El monto suele ser el último grupo capturado
-            currency = (match.groupCount >= 3) ? match.group(2)?.trim() ?? "S/" : "S/";
             final amountStr = (match.groupCount >= 3) 
                 ? match.group(3)?.replaceAll(',', '.').trim() ?? "0"
                 : match.group(2)?.replaceAll(',', '.').trim() ?? "0";
             amount = double.tryParse(amountStr);
+            if (match.groupCount >= 3) {
+              currency = match.group(2)?.trim() ?? "S/";
+            }
           }
         }
         if (senderName != null && amount != null && amount > 0) break;
@@ -86,9 +106,9 @@ class PaymentParser {
     }
 
     // LIMPIEZA AGRESIVA DEL NOMBRE:
-    // 1. Quitar prefijos comunes de Yape
+    // 1. Quitar prefijos comunes de Yape y Plin
     senderName = senderName
-        .replaceAll(RegExp(r"^(?:Yape:?\s*|¡?Te\s+yapearon!?\s*|¡?Recibiste\s+un\s+Yape!?\s*)", caseSensitive: false), "")
+        .replaceAll(RegExp(r"^(?:Yape:?\s*|Plin:?\s*|¡?Te\s+yapearon!?\s*|¡?Recibiste\s+un\s+(?:Yape|Plin)!?\s*)", caseSensitive: false), "")
         .trim();
     
     // 2. QUITAR ASTERISCOS (*) - Esto evita que el TTS los lea

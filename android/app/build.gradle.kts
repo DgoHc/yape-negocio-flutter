@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.novabytex.aplicativo"
-    compileSdk = 36 // Actualizado a 36 para compatibilidad con plugins recientes
+    compileSdk = 36 // Cumpliendo requisito de plugins y Play Store
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -31,7 +31,7 @@ android {
     defaultConfig {
         applicationId = "com.novabytex.aplicativo"
         minSdk = 24 
-        targetSdk = 36 // CUMPLIENDO REQUISITO DE GOOGLE PLAY API 36
+        targetSdk = 36 // Exigencia de Google Play
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -48,8 +48,9 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // Desactivamos ofuscación para evitar que R8 borre clases de Google Auth
+            isMinifyEnabled = false 
+            isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -57,4 +58,10 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 }
