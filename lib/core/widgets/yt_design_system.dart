@@ -14,8 +14,8 @@ class ClayContainer extends StatelessWidget {
   const ClayContainer({
     super.key,
     this.child,
-    this.color = AppTheme.backgroundColor,
-    this.borderRadius = 28,
+    this.color = AppTheme.surfaceColor,
+    this.borderRadius = 24,
     this.padding,
     this.isPressed = false,
     this.height,
@@ -33,10 +33,8 @@ class ClayContainer extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: AppTheme.clayShadow(
-          baseColor: color, 
-          isPressed: isPressed,
-          intensity: shadowIntensity,
+        boxShadow: AppTheme.softProShadow(
+          intensity: isPressed ? shadowIntensity * 0.3 : shadowIntensity,
         ),
       ),
       child: child,
@@ -55,16 +53,19 @@ class SoftCard extends StatelessWidget {
     required this.child,
     this.color,
     this.padding,
-    this.borderRadius = 28,
+    this.borderRadius = 24,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ClayContainer(
-      color: color ?? AppTheme.surfaceColor,
-      borderRadius: borderRadius,
+    return Container(
       padding: padding ?? const EdgeInsets.all(20),
-      shadowIntensity: 0.6,
+      decoration: BoxDecoration(
+        color: color ?? AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: const Color(0xFFF0F1F7), width: 1.0),
+        boxShadow: AppTheme.softProShadow(intensity: 0.8),
+      ),
       child: child,
     );
   }
@@ -113,29 +114,43 @@ class _AppButtonState extends State<AppButton> {
     final baseColor = widget.color ?? 
         (isSecondary ? Colors.white : AppTheme.primaryColor);
     
-    final textColor = isSecondary ? AppTheme.textPrimary : const Color(0xFF3D2E00);
-    
+    final textColor = isSecondary ? AppTheme.textPrimary : const Color(0xFF2D2100);
+    final isDisabled = widget.onPressed == null || widget.isLoading;
+
     return GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) => setState(() => _isPressed = false),
       onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.isLoading ? null : widget.onPressed,
-      child: ClayContainer(
-        color: widget.onPressed == null ? Colors.grey.shade200 : baseColor,
-        isPressed: _isPressed,
-        borderRadius: 16,
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24), // Aumentado vertical de 16 a 18 para mayor balance
-        shadowIntensity: isSecondary ? 0.4 : 1.0,
+      onTap: isDisabled ? null : widget.onPressed,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+        decoration: BoxDecoration(
+          color: isDisabled ? const Color(0xFFE5E7EB) : baseColor,
+          borderRadius: BorderRadius.circular(28), // Modern Pill Shape
+          border: isSecondary ? Border.all(color: const Color(0xFFE5E7EB), width: 1.5) : null,
+          boxShadow: isDisabled
+              ? []
+              : (isSecondary
+                  ? AppTheme.softProShadow(intensity: 0.4)
+                  : [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: _isPressed ? 0.2 : 0.45),
+                        blurRadius: _isPressed ? 8 : 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ]),
+        ),
         child: Center(
           child: widget.isLoading
               ? SizedBox(
                   height: 20,
                   width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: textColor),
+                  child: CircularProgressIndicator(strokeWidth: 2.5, color: textColor),
                 )
               : Row(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center, // Asegurar centrado vertical
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     if (widget.prefixWidget != null) ...[
                       widget.prefixWidget!,
@@ -144,16 +159,13 @@ class _AppButtonState extends State<AppButton> {
                       Icon(widget.icon, color: textColor, size: 20),
                       const SizedBox(width: 10),
                     ],
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2), // Micro-ajuste para compensar base line visual
-                      child: Text(
-                        widget.label,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: textColor,
-                              fontWeight: FontWeight.bold,
-                              height: 1.1, // Mejor ajuste de altura de línea
-                            ),
-                      ),
+                    Text(
+                      widget.label,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: textColor,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
                     ),
                   ],
                 ),
@@ -197,13 +209,13 @@ class IconActionButton extends StatelessWidget {
         message: tooltip ?? '',
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           child: Container(
-            width: 38,
-            height: 38,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: color ?? Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+              color: color ?? Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, size: 18, color: Colors.white),
           ),
@@ -318,29 +330,32 @@ class YtTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+          padding: const EdgeInsets.only(left: 6.0, bottom: 8.0),
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
-        ClayContainer(
-          color: AppTheme.surfaceColor,
-          borderRadius: 16,
-          isPressed: true, 
-          shadowIntensity: 0.4,
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE8E9F3), width: 1.2),
+            boxShadow: AppTheme.softProShadow(intensity: 0.3),
+          ),
           child: TextFormField(
             controller: controller,
             obscureText: isPassword || obscureText,
             keyboardType: keyboardType,
             validator: validator,
-            style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w500),
+            style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 15),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: const TextStyle(color: AppTheme.textPlaceholder),
-              prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: const Color(0xFFB8930A), size: 20) : null,
+              hintStyle: const TextStyle(color: AppTheme.textPlaceholder, fontWeight: FontWeight.normal),
+              prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: const Color(0xFFD99B00), size: 20) : null,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             ),

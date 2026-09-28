@@ -2,15 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color backgroundColor = Color(0xFFFFFDF5);
-  static const Color surfaceColor = Color(0xFFFFF4CC);
+  static const Color backgroundColor = Color(0xFFF8F9FD);
+  static const Color surfaceColor = Color(0xFFFFFFFF);
   static const Color primaryColor = Color(0xFFFFC93C);
-  static const Color secondaryColor = Color(0xFFFFDE7D);
-  static const Color textPrimary = Color(0xFF2D2100);
-  static const Color textSecondary = Color(0xFF8A7A4A);
-  static const Color textPlaceholder = Color(0xFFB0A070);
-  static const Color successColor = Color(0xFF6FCF97);
-  static const Color errorColor = Color(0xFFE85D5D);
+  static const Color secondaryColor = Color(0xFFFFF0B3);
+  static const Color textPrimary = Color(0xFF1E1B18);
+  static const Color textSecondary = Color(0xFF717488);
+  static const Color textPlaceholder = Color(0xFFA2A5B8);
+  static const Color successColor = Color(0xFF22C55E);
+  static const Color errorColor = Color(0xFFEF4444);
+
+  static List<BoxShadow> softProShadow({
+    double intensity = 1.0,
+    Color? shadowColor,
+  }) {
+    final color = shadowColor ?? const Color(0xFF0F172A);
+    return [
+      BoxShadow(
+        color: color.withValues(alpha: 0.06 * intensity),
+        blurRadius: 24,
+        offset: const Offset(0, 10),
+        spreadRadius: 0,
+      ),
+      BoxShadow(
+        color: color.withValues(alpha: 0.03 * intensity),
+        blurRadius: 8,
+        offset: const Offset(0, 2),
+        spreadRadius: 0,
+      ),
+    ];
+  }
 
   static List<BoxShadow> clayShadow({
     required Color baseColor,
@@ -20,31 +41,14 @@ class AppTheme {
     if (isPressed) {
       return [
         BoxShadow(
-          color: Colors.black.withOpacity(0.05 * intensity),
-          offset: const Offset(2, 2),
+          color: Colors.black.withValues(alpha: 0.04 * intensity),
+          offset: const Offset(1, 1),
           blurRadius: 4,
-          spreadRadius: 1,
-        ),
-        BoxShadow(
-          color: Colors.white.withOpacity(0.5 * intensity),
-          offset: const Offset(-2, -2),
-          blurRadius: 4,
+          spreadRadius: 0,
         ),
       ];
     }
-    
-    return [
-      BoxShadow(
-        color: Colors.white.withOpacity(0.8 * intensity),
-        offset: const Offset(-5, -5),
-        blurRadius: 10,
-      ),
-      BoxShadow(
-        color: Color.lerp(baseColor, Colors.black, 0.2)!.withOpacity(0.15 * intensity),
-        offset: const Offset(5, 5),
-        blurRadius: 12,
-      ),
-    ];
+    return softProShadow(intensity: intensity);
   }
 
   static ThemeData get darkTheme => lightTheme;
@@ -56,7 +60,7 @@ class AppTheme {
       useMaterial3: true,
       scaffoldBackgroundColor: backgroundColor,
       primaryColor: primaryColor,
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: primaryColor,
         secondary: secondaryColor,
         surface: surfaceColor,
@@ -66,24 +70,26 @@ class AppTheme {
       textTheme: baseTextTheme.copyWith(
         displayLarge: GoogleFonts.plusJakartaSans(
           fontSize: 34,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
           color: textPrimary,
-          letterSpacing: -0.5,
+          letterSpacing: -0.8,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
         headlineMedium: GoogleFonts.plusJakartaSans(
           fontSize: 26,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w800,
           color: textPrimary,
+          letterSpacing: -0.5,
         ),
         titleLarge: GoogleFonts.plusJakartaSans(
           fontSize: 22,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
+          letterSpacing: -0.3,
         ),
         titleMedium: GoogleFonts.plusJakartaSans(
           fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
         bodyLarge: GoogleFonts.plusJakartaSans(
@@ -98,11 +104,12 @@ class AppTheme {
         ),
         labelMedium: GoogleFonts.plusJakartaSans(
           fontSize: 14,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
           color: textSecondary,
         ),
         labelSmall: GoogleFonts.plusJakartaSans(
           fontSize: 12,
+          fontWeight: FontWeight.w500,
           color: textSecondary,
         ),
       ),
@@ -113,7 +120,8 @@ class AppTheme {
         titleTextStyle: TextStyle(
           color: textPrimary,
           fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w800,
+          fontFamily: 'Plus Jakarta Sans',
         ),
         iconTheme: IconThemeData(color: textPrimary),
       ),
