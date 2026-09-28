@@ -215,20 +215,53 @@ class AdminPanelView extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (profile.email != null) Text(profile.email!, style: const TextStyle(fontSize: 11)),
-            Text('Estado: ${hasAccess ? "ACTIVO" : "SIN ACCESO"}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+            if (profile.businessType != null) Text('Rubro: ${profile.businessType}', style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+            Text('Plan: ${profile.isSubscribed ? "Suscrito (Activo)" : "Inactivo / Prueba"}',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: hasAccess ? AppTheme.successColor : AppTheme.errorColor)),
           ],
         ),
         trailing: profile.id == null 
           ? null 
-          : Switch(
-              activeColor: AppTheme.primaryColor,
-              value: profile.isSubscribed,
-              onChanged: (newValue) {
-                context.read<AdminBloc>().add(UpdateUserProfileSubscription(
-                      id: profile.id!,
-                      isSubscribed: newValue,
-                    ));
-              },
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Switch(
+                  activeColor: AppTheme.primaryColor,
+                  value: profile.isSubscribed,
+                  onChanged: (newValue) {
+                    context.read<AdminBloc>().add(UpdateUserProfileSubscription(
+                          id: profile.id!,
+                          isSubscribed: newValue,
+                        ));
+                  },
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert_rounded),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _showEditAppUserDialog(context, profile);
+                    } else if (value == 'toggle') {
+                      context.read<AdminBloc>().add(UpdateUserProfileSubscription(
+                            id: profile.id!,
+                            isSubscribed: !profile.isSubscribed,
+                          ));
+                    } else if (value == 'delete') {
+                      _confirmDeleteAppUser(context, profile);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'edit', child: Text('Editar Perfil')),
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child: Text(profile.isSubscribed ? 'Desactivar Plan' : 'Activar Plan'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Eliminar Perfil', style: TextStyle(color: AppTheme.errorColor)),
+                    ),
+                  ],
+                ),
+              ],
             ),
       ),
     );
@@ -239,13 +272,171 @@ class AdminPanelView extends StatelessWidget {
       backgroundColor: AppTheme.primaryColor,
       child: const Icon(Icons.add_rounded, color: Color(0xFF3D2E00)),
       onPressed: () {
+        final isSuperAdmin = authState.userRole == 'SUPER_ADMIN';
         final tabIndex = DefaultTabController.of(context).index;
         if (tabIndex == 0) {
           _showAddDeviceDialog(context);
-        } else if (tabIndex == 1 && authState.userRole == 'SUPER_ADMIN') {
+        } else if (tabIndex == 1 && isSuperAdmin) {
           _showAddUserDialog(context);
+        } else if (tabIndex == (isSuperAdmin ? 2 : 1)) {
+          _showAddAppUserDialog(context);
         }
       },
+    );
+  }
+
+  void _showAddAppUserDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final phoneController = TextEditingController();
+    final businessTypeController = TextEditingController();
+    bool isSubscribed = true;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (statefulContext, setState) => AlertDialog(
+          backgroundColor: AppTheme.backgroundColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          title: const Text('Nuevo Perfil de Usuario', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                YtTextField(controller: nameController, label: 'Nombre Completo', hintText: 'Ej. Juan Pérez'),
+                const SizedBox(height: 12),
+                YtTextField(controller: emailController, label: 'Correo', hintText: 'juan@correo.com', keyboardType: TextInputType.emailAddress),
+                const SizedBox(height: 12),
+                YtTextField(controller: passwordController, label: 'Contraseña', hintText: 'Mínimo 6 caracteres', obscureText: true),
+                const SizedBox(height: 12),
+                YtTextField(controller: phoneController, label: 'Teléfono (Opcional)', hintText: '9XXXXXXXX', keyboardType: TextInputType.phone),
+                const SizedBox(height: 12),
+                YtTextField(controller: businessTypeController, label: 'Rubro / Negocio (Opcional)', hintText: 'Ej. Transporte'),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  title: const Text('Activar Plan Suscrito'),
+                  value: isSubscribed,
+                  activeColor: AppTheme.primaryColor,
+                  onChanged: (val) => setState(() => isSubscribed = val),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
+            AppButton(
+              label: 'Crear',
+              onPressed: () {
+                if (nameController.text.isNotEmpty &&
+                    emailController.text.isNotEmpty &&
+                    passwordController.text.length >= 6) {
+                  context.read<AdminBloc>().add(
+                        CreateAppUserRequested(
+                          name: nameController.text.trim(),
+                          email: emailController.text.trim(),
+                          password: passwordController.text,
+                          phone: phoneController.text.isEmpty ? null : phoneController.text.trim(),
+                          businessType: businessTypeController.text.isEmpty ? null : businessTypeController.text.trim(),
+                          isSubscribed: isSubscribed,
+                        ),
+                      );
+                  Navigator.pop(dialogContext);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Ingresa todos los campos requeridos (mín. 6 caracteres contraseña)')),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditAppUserDialog(BuildContext context, UserProfile profile) {
+    final nameController = TextEditingController(text: profile.name);
+    final emailController = TextEditingController(text: profile.email ?? '');
+    final phoneController = TextEditingController(text: profile.phone ?? '');
+    final businessTypeController = TextEditingController(text: profile.businessType ?? '');
+    bool isSubscribed = profile.isSubscribed;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (statefulContext, setState) => AlertDialog(
+          backgroundColor: AppTheme.backgroundColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          title: const Text('Editar Perfil de Usuario', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                YtTextField(controller: nameController, label: 'Nombre Completo', hintText: 'Ej. Juan Pérez'),
+                const SizedBox(height: 12),
+                YtTextField(controller: emailController, label: 'Correo', hintText: 'juan@correo.com', keyboardType: TextInputType.emailAddress),
+                const SizedBox(height: 12),
+                YtTextField(controller: phoneController, label: 'Teléfono', hintText: '9XXXXXXXX', keyboardType: TextInputType.phone),
+                const SizedBox(height: 12),
+                YtTextField(controller: businessTypeController, label: 'Rubro / Negocio', hintText: 'Ej. Transporte'),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  title: const Text('Estado de Suscripción'),
+                  value: isSubscribed,
+                  activeColor: AppTheme.primaryColor,
+                  onChanged: (val) => setState(() => isSubscribed = val),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
+            AppButton(
+              label: 'Guardar',
+              onPressed: () {
+                if (profile.id != null) {
+                  context.read<AdminBloc>().add(
+                        UpdateAppUserRequested(
+                          id: profile.id!,
+                          name: nameController.text.trim(),
+                          email: emailController.text.trim(),
+                          phone: phoneController.text.isEmpty ? null : phoneController.text.trim(),
+                          businessType: businessTypeController.text.isEmpty ? null : businessTypeController.text.trim(),
+                          isSubscribed: isSubscribed,
+                        ),
+                      );
+                  Navigator.pop(dialogContext);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteAppUser(BuildContext context, UserProfile profile) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.backgroundColor,
+        title: const Text('Eliminar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('¿Estás seguro de eliminar el perfil de "${profile.name}"? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
+          AppButton(
+            label: 'Eliminar',
+            isSecondary: true,
+            onPressed: () {
+              if (profile.id != null) {
+                context.read<AdminBloc>().add(DeleteAppUserRequested(profile.id!));
+                Navigator.pop(dialogContext);
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 

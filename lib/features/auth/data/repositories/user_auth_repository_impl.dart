@@ -131,6 +131,24 @@ class UserAuthRepositoryImpl implements UserAuthRepository {
   }
 
   @override
+  Future<Either<Failure, void>> forgotPassword(String email) async {
+    return await _remoteDataSource.forgotPassword(email);
+  }
+
+  @override
+  Future<Either<Failure, void>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    return await _remoteDataSource.resetPassword(
+      email: email,
+      code: code,
+      newPassword: newPassword,
+    );
+  }
+
+  @override
   Future<Either<Failure, ({String token, UserProfile profile})>> googleLogin({
     required String email,
     required String name,

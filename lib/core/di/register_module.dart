@@ -68,9 +68,7 @@ abstract class RegisterModule {
             // Despachar evento para cerrar sesión en el AuthBloc y redirigir
             try {
               if (sl.isRegistered<AuthBloc>()) {
-                sl<AuthBloc>().add(const LogoutRequested(
-                  message: 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.',
-                ));
+                sl<AuthBloc>().add(const LogoutRequested());
               }
             } catch (ex) {
               AppLogger.e('Error dispatching LogoutRequested on 401/403', ex);

@@ -24,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state.status == AuthStatus.authenticatedDriver) context.go('/dashboard');
+        else if (state.status == AuthStatus.authenticatedAdmin) context.go('/admin-panel');
         else if (state.status == AuthStatus.needsSubscription) context.go('/subscription');
         else if (state.status == AuthStatus.needsVerification) context.go('/verify-email');
         else if (state.error != null) {
@@ -67,9 +68,30 @@ class _LoginScreenState extends State<LoginScreen> {
                         obscureText: true,
                         validator: (value) => value == null || value.isEmpty ? 'Campo requerido' : null,
                       ),
-                      Align(alignment: Alignment.centerRight, child: TextButton(onPressed: () {}, child: const Text('¿Olvidaste tu contraseña?', style: TextStyle(fontSize: 13)))),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => context.push('/forgot-password'),
+                          child: const Text('¿Olvidaste tu contraseña?', style: TextStyle(fontSize: 13)),
+                        ),
+                      ),
                       const SizedBox(height: 40),
-                      BlocBuilder<AuthBloc, AuthState>(builder: (context, state) => AppButton(label: 'Ingresar', isLoading: state.status == AuthStatus.loading, onPressed: () { if (_formKey.currentState!.validate()) context.read<AuthBloc>().add(LoginUserRequested(email: _emailController.text.trim(), password: _passwordController.text)); })),
+                      BlocBuilder<AuthBloc, AuthState>(
+                        builder: (context, state) => AppButton(
+                          label: 'Ingresar',
+                          isLoading: state.status == AuthStatus.loading,
+                          onPressed: () {
+                            if (_formKey.currentState!.validate()) {
+                              context.read<AuthBloc>().add(
+                                    LoginUserRequested(
+                                      email: _emailController.text.trim(),
+                                      password: _passwordController.text,
+                                    ),
+                                  );
+                            }
+                          },
+                        ),
+                      ),
                       const SizedBox(height: 48),
                       Row(children: [const Expanded(child: Divider()), Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text('o ingresar con', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13))), const Expanded(child: Divider())]),
                       const SizedBox(height: 32),

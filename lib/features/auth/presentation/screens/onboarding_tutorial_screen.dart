@@ -227,8 +227,8 @@ class AnimatedOnboardingContent extends StatelessWidget {
                       boxShadow: [
                         BoxShadow(
                           color: step.color.withValues(alpha: 0.35),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
+                          blurRadius: 25,
+                          offset: const Offset(0, 5), // Reducido de 10
                         ),
                       ],
                     ),
@@ -242,7 +242,7 @@ class AnimatedOnboardingContent extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 32), // Reducido de 48
           
           // Título del paso
           AnimatedOpacity(
@@ -255,6 +255,7 @@ class AnimatedOnboardingContent extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 color: isDark ? Colors.white : Colors.black87,
                 letterSpacing: 0.5,
+                height: 1.2, // Mejor ajuste de línea
               ),
               textAlign: TextAlign.center,
             ),
@@ -266,13 +267,13 @@ class AnimatedOnboardingContent extends StatelessWidget {
             duration: const Duration(milliseconds: 500),
             opacity: isActive ? 1.0 : 0.0,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0), // Aumentado padding
               child: Text(
                 step.description,
                 style: const TextStyle(
                   fontSize: 15,
                   color: Colors.grey,
-                  height: 1.6,
+                  height: 1.5, // Ajustado
                 ),
                 textAlign: TextAlign.center,
               ),

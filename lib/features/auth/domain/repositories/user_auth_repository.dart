@@ -44,6 +44,16 @@ abstract class UserAuthRepository {
   /// Reenvía el código OTP al correo.
   Future<Either<Failure, void>> resendOtp(String email);
 
+  /// Solicita el código de recuperación de contraseña.
+  Future<Either<Failure, void>> forgotPassword(String email);
+
+  /// Restablece la contraseña utilizando el código OTP.
+  Future<Either<Failure, void>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  });
+
   /// Inicia sesión con Google.
   Future<Either<Failure, ({String token, UserProfile profile})>> googleLogin({
     required String email,

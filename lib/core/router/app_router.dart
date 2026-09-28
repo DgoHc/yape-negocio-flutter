@@ -13,6 +13,7 @@ import '../../features/auth/presentation/screens/user_registration_screen.dart';
 import '../../features/auth/presentation/screens/subscription_screen.dart';
 import '../../features/auth/presentation/screens/setup_business_type_screen.dart';
 import '../../features/auth/presentation/screens/email_verification_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/admin/presentation/screens/admin_panel_screen.dart';
 import '../../features/notifications/presentation/screens/notification_onboarding_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
@@ -57,6 +58,10 @@ class AppRouter {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         path: '/dashboard',
@@ -116,18 +121,18 @@ class AppRouter {
       final isSubscription = location == '/subscription';
       final isSetupBusinessType = location == '/setup-business-type';
       final isVerifyEmail = location == '/verify-email';
+      final isForgotPassword = location == '/forgot-password';
       final isOnboarding = location == '/onboarding';
       
       if (isSplashing || isOnboarding) return null;
 
       // 0. Public Routes
-      if (isLogin || isAdminLogin || isRegister || isVerifyEmail || isSetupBusinessType || isSubscription) {
+      if (isLogin || isAdminLogin || isRegister || isVerifyEmail || isSetupBusinessType || isSubscription || isForgotPassword) {
         if (authState.status == AuthStatus.authenticatedAdmin) return '/admin-panel';
         if (authState.status == AuthStatus.authenticatedDriver) {
           if (authState.userProfile?.businessType == null) {
             return isSetupBusinessType ? null : '/setup-business-type';
           }
-          // Permitir acceso a la pantalla de suscripción incluso si está autenticado (para ver planes o renovar)
           if (isSubscription) return null;
           return '/notification-onboarding';
         }
@@ -142,14 +147,17 @@ class AppRouter {
       // 1. Auth states logic
       switch (authState.status) {
         case AuthStatus.initial:
-          return isWelcome || isOptions || isLogin || isRegister || isAdminLogin ? null : '/';
+          return isWelcome || isOptions || isLogin || isRegister || isAdminLogin || isForgotPassword ? null : '/';
           
         case AuthStatus.needsVerification:
           return isVerifyEmail || isRegister ? null : '/verify-email';
 
+        case AuthStatus.forgotPasswordOtpSent:
+        case AuthStatus.passwordResetSuccess:
+          return isForgotPassword || isLogin ? null : '/forgot-password';
+
         case AuthStatus.noAccess:
         case AuthStatus.needsSubscription:
-          // Permitir ir atrás al welcome o opciones si está en este estado
           if (isWelcome || isOptions || isSubscription || isLogin || isRegister) return null;
           return '/subscription';
           
@@ -157,10 +165,9 @@ class AppRouter {
           return isRegister ? null : '/register';
           
         case AuthStatus.unauthenticated:
-          return isWelcome || isOptions || isLogin || isRegister || isAdminLogin ? null : '/';
+          return isWelcome || isOptions || isLogin || isRegister || isAdminLogin || isForgotPassword ? null : '/';
           
         case AuthStatus.authenticatedAdmin:
-          // Solo forzar redirect si intenta acceder a rutas de login/registro o dashboard de driver
           if (isLogin || isAdminLogin || isRegister || location == '/dashboard') return '/admin-panel';
           return null;
           
@@ -171,7 +178,6 @@ class AppRouter {
           if (authState.userProfile?.businessType == null) {
             return '/setup-business-type';
           }
-          // Si intenta ir a login/registro siendo ya driver, mandarlo al onboarding
           if (isLogin || isAdminLogin || isRegister) {
             return '/notification-onboarding';
           }

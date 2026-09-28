@@ -124,7 +124,7 @@ class _AppButtonState extends State<AppButton> {
         color: widget.onPressed == null ? Colors.grey.shade200 : baseColor,
         isPressed: _isPressed,
         borderRadius: 16,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24), // Aumentado vertical de 16 a 18 para mayor balance
         shadowIntensity: isSecondary ? 0.4 : 1.0,
         child: Center(
           child: widget.isLoading
@@ -135,6 +135,7 @@ class _AppButtonState extends State<AppButton> {
                 )
               : Row(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center, // Asegurar centrado vertical
                   children: [
                     if (widget.prefixWidget != null) ...[
                       widget.prefixWidget!,
@@ -143,12 +144,16 @@ class _AppButtonState extends State<AppButton> {
                       Icon(widget.icon, color: textColor, size: 20),
                       const SizedBox(width: 10),
                     ],
-                    Text(
-                      widget.label,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: textColor,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2), // Micro-ajuste para compensar base line visual
+                      child: Text(
+                        widget.label,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: textColor,
+                              fontWeight: FontWeight.bold,
+                              height: 1.1, // Mejor ajuste de altura de línea
+                            ),
+                      ),
                     ),
                   ],
                 ),

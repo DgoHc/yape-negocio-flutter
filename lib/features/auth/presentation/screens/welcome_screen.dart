@@ -33,21 +33,37 @@ class WelcomeScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 40.0),
                 child: Column(
                   children: [
-                    const SizedBox(height: 60),
+                    const SizedBox(height: 40), // Reducido de 60
                     Center(
                       child: Container(
                         padding: const EdgeInsets.all(22),
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 10))]),
+                        decoration: const BoxDecoration(
+                          color: Colors.white, 
+                          shape: BoxShape.circle, 
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12, 
+                              blurRadius: 25, 
+                              offset: Offset(0, 5) // Reducido de 10 para centrar visualmente
+                            )
+                          ]
+                        ),
                         child: const Icon(Icons.payments_rounded, size: 75, color: AppTheme.primaryColor),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24), // Reducido de 32
                     Text('SonoPay', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 48, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
                     const Spacer(),
-                    Text('Detección inteligente de pagos por voz en tiempo real.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppTheme.textSecondary, fontSize: 18, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
-                    const SizedBox(height: 12),
-                    Text('La herramienta definitiva para comerciantes y transportistas.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textPlaceholder), textAlign: TextAlign.center),
-                    const SizedBox(height: 48),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text('Detección inteligente de pagos por voz en tiempo real.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppTheme.textSecondary, fontSize: 18, fontWeight: FontWeight.w600, height: 1.3), textAlign: TextAlign.center),
+                    ),
+                    const SizedBox(height: 16), // Ajustado
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text('La herramienta definitiva para comerciantes y transportistas.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textPlaceholder, height: 1.4), textAlign: TextAlign.center),
+                    ),
+                    const SizedBox(height: 40), // Reducido de 48
                     BlocBuilder<AuthBloc, AuthState>(builder: (context, state) {
                       final isLoading = state.status == AuthStatus.loading;
                       return Column(children: [

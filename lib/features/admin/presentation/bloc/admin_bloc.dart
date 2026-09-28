@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../../../auth/domain/entities/user_profile.dart';
+import '../../domain/repositories/admin_repository.dart';
 import '../../domain/usecases/get_devices_use_case.dart';
 import '../../domain/usecases/get_users_use_case.dart';
 import '../../domain/usecases/get_user_profiles_use_case.dart';
@@ -34,6 +35,58 @@ class UpdateUserProfileSubscription extends AdminEvent {
 
   @override
   List<Object?> get props => [id, isSubscribed];
+}
+
+class CreateAppUserRequested extends AdminEvent {
+  final String name;
+  final String email;
+  final String password;
+  final String? phone;
+  final String? businessType;
+  final bool isSubscribed;
+
+  CreateAppUserRequested({
+    required this.name,
+    required this.email,
+    required this.password,
+    this.phone,
+    this.businessType,
+    this.isSubscribed = true,
+  });
+
+  @override
+  List<Object?> get props => [name, email, password, phone, businessType, isSubscribed];
+}
+
+class UpdateAppUserRequested extends AdminEvent {
+  final String id;
+  final String? name;
+  final String? email;
+  final String? phone;
+  final String? businessType;
+  final bool? isSubscribed;
+  final String? subscriptionPlan;
+
+  UpdateAppUserRequested({
+    required this.id,
+    this.name,
+    this.email,
+    this.phone,
+    this.businessType,
+    this.isSubscribed,
+    this.subscriptionPlan,
+  });
+
+  @override
+  List<Object?> get props => [id, name, email, phone, businessType, isSubscribed, subscriptionPlan];
+}
+
+class DeleteAppUserRequested extends AdminEvent {
+  final String id;
+  DeleteAppUserRequested(this.id);
+
+  @override
+  List<Object?> get props => [id];
 }
 
 class RegisterDeviceManual extends AdminEvent {
@@ -149,6 +202,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
   final UpdateUserUseCase _updateUserUseCase;
   final DeleteUserUseCase _deleteUserUseCase;
   final ExportAdminDataUseCase _exportAdminDataUseCase;
+  final AdminRepository _adminRepository;
 
   AdminBloc(
     this._getDevicesUseCase,
@@ -162,11 +216,15 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     this._updateUserUseCase,
     this._deleteUserUseCase,
     this._exportAdminDataUseCase,
+    this._adminRepository,
   ) : super(const AdminState()) {
     on<LoadDevices>(_onLoadDevices);
     on<LoadUsers>(_onLoadUsers);
     on<LoadUserProfiles>(_onLoadUserProfiles);
     on<UpdateUserProfileSubscription>(_onUpdateUserProfileSubscription);
+    on<CreateAppUserRequested>(_onCreateAppUserRequested);
+    on<UpdateAppUserRequested>(_onUpdateAppUserRequested);
+    on<DeleteAppUserRequested>(_onDeleteAppUserRequested);
     on<RegisterDeviceManual>(_onRegisterDeviceManual);
     on<UpdateDeviceStatus>(_onUpdateDeviceStatus);
     on<DeleteDeviceRequested>(_onDeleteDeviceRequested);
@@ -218,6 +276,60 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     );
   }
 
+  Future<void> _onCreateAppUserRequested(
+      CreateAppUserRequested event, Emitter<AdminState> emit) async {
+    emit(state.copyWith(status: AdminStatus.loading));
+    final result = await _adminRepository.createAppUser(
+      name: event.name,
+      email: event.email,
+      password: event.password,
+      phone: event.phone,
+      businessType: event.businessType,
+      isSubscribed: event.isSubscribed,
+    );
+    result.fold(
+      (failure) => emit(state.copyWith(status: AdminStatus.failure, error: failure.message)),
+      (_) {
+        emit(state.copyWith(status: AdminStatus.success, message: 'Perfil de usuario creado con éxito'));
+        add(LoadUserProfiles());
+      },
+    );
+  }
+
+  Future<void> _onUpdateAppUserRequested(
+      UpdateAppUserRequested event, Emitter<AdminState> emit) async {
+    emit(state.copyWith(status: AdminStatus.loading));
+    final result = await _adminRepository.updateAppUser(
+      event.id,
+      name: event.name,
+      email: event.email,
+      phone: event.phone,
+      businessType: event.businessType,
+      isSubscribed: event.isSubscribed,
+      subscriptionPlan: event.subscriptionPlan,
+    );
+    result.fold(
+      (failure) => emit(state.copyWith(status: AdminStatus.failure, error: failure.message)),
+      (_) {
+        emit(state.copyWith(status: AdminStatus.success, message: 'Perfil actualizado con éxito'));
+        add(LoadUserProfiles());
+      },
+    );
+  }
+
+  Future<void> _onDeleteAppUserRequested(
+      DeleteAppUserRequested event, Emitter<AdminState> emit) async {
+    emit(state.copyWith(status: AdminStatus.loading));
+    final result = await _adminRepository.deleteAppUser(event.id);
+    result.fold(
+      (failure) => emit(state.copyWith(status: AdminStatus.failure, error: failure.message)),
+      (_) {
+        emit(state.copyWith(status: AdminStatus.success, message: 'Perfil eliminado con éxito'));
+        add(LoadUserProfiles());
+      },
+    );
+  }
+
   Future<void> _onRegisterDeviceManual(RegisterDeviceManual event, Emitter<AdminState> emit) async {
     emit(state.copyWith(status: AdminStatus.loading));
     final result = await _registerDeviceManualUseCase(
@@ -237,7 +349,6 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
   }
 
   Future<void> _onUpdateDeviceStatus(UpdateDeviceStatus event, Emitter<AdminState> emit) async {
-    // Optimistic Update
     final updatedDevices = state.devices.map((device) {
       if (device['id'].toString() == event.id) {
         return {

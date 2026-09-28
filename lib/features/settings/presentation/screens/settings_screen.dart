@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/yt_design_system.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -99,6 +100,29 @@ class SettingsView extends StatelessWidget {
                   ),
                 );
               },
+            ),
+            const SizedBox(height: 40),
+            _SectionTitle(title: 'Información Legal', icon: Icons.gavel_rounded),
+            const SizedBox(height: 16),
+            SoftCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.privacy_tip_outlined, color: AppTheme.primaryColor),
+                    title: const Text('Política de Privacidad', style: TextStyle(fontWeight: FontWeight.bold)),
+                    trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                    onTap: () => launchUrl(Uri.parse('https://api.novabytexrj.com/privacy')),
+                  ),
+                  const Divider(height: 1, indent: 20, endIndent: 20),
+                  ListTile(
+                    leading: const Icon(Icons.description_outlined, color: AppTheme.primaryColor),
+                    title: const Text('Términos y Condiciones', style: TextStyle(fontWeight: FontWeight.bold)),
+                    trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                    onTap: () => launchUrl(Uri.parse('https://api.novabytexrj.com/terms')),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 40),
             _SectionTitle(title: 'Preferencias de Historial', icon: Icons.history_rounded),

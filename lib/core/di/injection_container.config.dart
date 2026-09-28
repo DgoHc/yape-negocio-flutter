@@ -91,6 +91,10 @@ import '../../features/auth/domain/usecases/register_user_use_case.dart'
 import '../../features/auth/domain/usecases/start_trial_use_case.dart' as _i491;
 import '../../features/auth/domain/usecases/update_profile_use_case.dart'
     as _i659;
+import '../../features/auth/domain/usecases/forgot_password_use_case.dart'
+    as _i288;
+import '../../features/auth/domain/usecases/reset_password_use_case.dart'
+    as _i289;
 import '../../features/auth/presentation/bloc/auth_bloc.dart' as _i797;
 import '../../features/connectivity/presentation/bloc/connectivity_bloc.dart'
     as _i78;
@@ -274,6 +278,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i675.TokenManager>(),
       ),
     );
+    gh.factory<_i288.ForgotPasswordUseCase>(
+      () => _i288.ForgotPasswordUseCase(gh<_i843.UserAuthRepository>()),
+    );
+    gh.factory<_i289.ResetPasswordUseCase>(
+      () => _i289.ResetPasswordUseCase(gh<_i843.UserAuthRepository>()),
+    );
     gh.lazySingleton<_i298.CreateUserUseCase>(
       () => _i298.CreateUserUseCase(gh<_i583.AdminRepository>()),
     );
@@ -345,6 +355,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i614.UpdateUserUseCase>(),
         gh<_i385.DeleteUserUseCase>(),
         gh<_i290.ExportAdminDataUseCase>(),
+        gh<_i583.AdminRepository>(),
       ),
     );
     gh.lazySingleton<_i315.PaymentRepository>(
@@ -408,11 +419,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i506.ApproveDeviceUseCase>(),
         gh<_i750.GetDeviceIdUseCase>(),
         gh<_i659.UpdateProfileUseCase>(),
+        gh<_i288.ForgotPasswordUseCase>(),
+        gh<_i289.ResetPasswordUseCase>(),
         gh<_i154.UserProfileRepository>(),
         gh<_i544.PaymentGatewayRepository>(),
         gh<_i373.RememberMeRepository>(),
         gh<_i947.GoogleAuthService>(),
         gh<_i843.UserAuthRepository>(),
+        gh<_i675.TokenManager>(),
       ),
     );
     return this;

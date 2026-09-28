@@ -109,4 +109,64 @@ class AdminRepositoryImpl implements AdminRepository {
       return Left(GeneralFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> createAppUser({
+    required String name,
+    required String email,
+    required String password,
+    String? phone,
+    String? businessType,
+    bool isSubscribed = true,
+  }) async {
+    try {
+      await _remoteDataSource.createAppUser(
+        name: name,
+        email: email,
+        password: password,
+        phone: phone,
+        businessType: businessType,
+        isSubscribed: isSubscribed,
+      );
+      return const Right(null);
+    } catch (e) {
+      return Left(GeneralFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateAppUser(
+    String id, {
+    String? name,
+    String? email,
+    String? phone,
+    String? businessType,
+    bool? isSubscribed,
+    String? subscriptionPlan,
+  }) async {
+    try {
+      await _remoteDataSource.updateAppUser(
+        id,
+        name: name,
+        email: email,
+        phone: phone,
+        businessType: businessType,
+        isSubscribed: isSubscribed,
+        subscriptionPlan: subscriptionPlan,
+      );
+      return const Right(null);
+    } catch (e) {
+      return Left(GeneralFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteAppUser(String id) async {
+    try {
+      await _remoteDataSource.deleteAppUser(id);
+      return const Right(null);
+    } catch (e) {
+      return Left(GeneralFailure(e.toString()));
+    }
+  }
 }

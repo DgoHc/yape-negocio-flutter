@@ -1,8 +1,11 @@
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/usecases/usecase.dart';
+import '../../../../core/utils/app_logger.dart';
+import '../../../../core/storage/secure/token_manager.dart';
+import '../../domain/entities/user_profile.dart';
+import '../../domain/entities/auth_status_result.dart';
 import '../../domain/usecases/login_admin_use_case.dart';
 import '../../domain/usecases/register_user_use_case.dart';
 import '../../domain/usecases/login_user_use_case.dart';
@@ -13,20 +16,18 @@ import '../../domain/usecases/logout_use_case.dart';
 import '../../domain/usecases/approve_device_use_case.dart';
 import '../../domain/usecases/get_device_id_use_case.dart';
 import '../../domain/usecases/update_profile_use_case.dart';
-import '../../../../core/utils/app_logger.dart';
-import '../../../../core/services/google_auth_service.dart';
-import '../../domain/repositories/remember_me_repository.dart';
+import '../../domain/usecases/forgot_password_use_case.dart';
+import '../../domain/usecases/reset_password_use_case.dart';
 import '../../domain/repositories/user_profile_repository.dart';
 import '../../domain/repositories/payment_gateway_repository.dart';
+import '../../domain/repositories/remember_me_repository.dart';
 import '../../domain/repositories/user_auth_repository.dart';
-import '../../domain/entities/user_profile.dart';
 import '../../domain/entities/payment_provider.dart';
-import '../../domain/entities/auth_status_result.dart';
+import '../../../../core/services/google_auth_service.dart';
 
 // Events
 abstract class AuthEvent extends Equatable {
   const AuthEvent();
-
   @override
   List<Object?> get props => [];
 }
@@ -35,12 +36,16 @@ class AppStarted extends AuthEvent {
   const AppStarted();
 }
 
-class LogoutRequested extends AuthEvent {
-  final String? message;
-  const LogoutRequested({this.message});
+class ClearError extends AuthEvent {
+  const ClearError();
+}
 
-  @override
-  List<Object?> get props => [message];
+class ResetAuthStatus extends AuthEvent {
+  const ResetAuthStatus();
+}
+
+class LogoutRequested extends AuthEvent {
+  const LogoutRequested();
 }
 
 class AdminLoginRequested extends AuthEvent {
@@ -114,16 +119,32 @@ class ResendOtpRequested extends AuthEvent {
   List<Object?> get props => [email];
 }
 
+class ForgotPasswordRequested extends AuthEvent {
+  final String email;
+
+  const ForgotPasswordRequested(this.email);
+
+  @override
+  List<Object?> get props => [email];
+}
+
+class ResetPasswordRequested extends AuthEvent {
+  final String email;
+  final String code;
+  final String newPassword;
+
+  const ResetPasswordRequested({
+    required this.email,
+    required this.code,
+    required this.newPassword,
+  });
+
+  @override
+  List<Object?> get props => [email, code, newPassword];
+}
+
 class StartTrial extends AuthEvent {
   const StartTrial();
-}
-
-class ClearError extends AuthEvent {
-  const ClearError();
-}
-
-class ResetAuthStatus extends AuthEvent {
-  const ResetAuthStatus();
 }
 
 class Subscribe extends AuthEvent {
@@ -161,6 +182,8 @@ enum AuthStatus {
   needsSubscription,
   needsRegistration,
   needsVerification,
+  forgotPasswordOtpSent,
+  passwordResetSuccess,
   loading,
   noAccess,
 }
@@ -168,6 +191,7 @@ enum AuthStatus {
 class AuthState extends Equatable {
   final AuthStatus status;
   final String? error;
+  final String? message;
   final String? userRole;
   final String? deviceId;
   final String? rememberedEmail;
@@ -177,6 +201,7 @@ class AuthState extends Equatable {
   const AuthState({
     this.status = AuthStatus.initial,
     this.error,
+    this.message,
     this.userRole,
     this.deviceId,
     this.rememberedEmail,
@@ -187,6 +212,7 @@ class AuthState extends Equatable {
   AuthState copyWith({
     AuthStatus? status,
     String? error,
+    String? message,
     String? userRole,
     String? deviceId,
     String? rememberedEmail,
@@ -195,7 +221,8 @@ class AuthState extends Equatable {
   }) {
     return AuthState(
       status: status ?? this.status,
-      error: error ?? this.error,
+      error: error,
+      message: message,
       userRole: userRole ?? this.userRole,
       deviceId: deviceId ?? this.deviceId,
       rememberedEmail: rememberedEmail ?? this.rememberedEmail,
@@ -205,7 +232,7 @@ class AuthState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [status, error, userRole, deviceId, rememberedEmail, timestamp, userProfile];
+  List<Object?> get props => [status, error, message, userRole, deviceId, rememberedEmail, timestamp, userProfile];
 }
 
 @injectable
@@ -220,11 +247,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final ApproveDeviceUseCase _approveDeviceUseCase;
   final GetDeviceIdUseCase _getDeviceIdUseCase;
   final UpdateProfileUseCase _updateProfileUseCase;
+  final ForgotPasswordUseCase _forgotPasswordUseCase;
+  final ResetPasswordUseCase _resetPasswordUseCase;
   final UserProfileRepository _userProfileRepository;
   final PaymentGatewayRepository _paymentGatewayRepository;
   final RememberMeRepository _rememberMeRepository;
   final GoogleAuthService _googleAuthService;
   final UserAuthRepository _userAuthRepository;
+  final TokenManager _tokenManager;
 
   AuthBloc(
     this._loginAdminUseCase,
@@ -237,11 +267,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     this._approveDeviceUseCase,
     this._getDeviceIdUseCase,
     this._updateProfileUseCase,
+    this._forgotPasswordUseCase,
+    this._resetPasswordUseCase,
     this._userProfileRepository,
     this._paymentGatewayRepository,
     this._rememberMeRepository,
     this._googleAuthService,
     this._userAuthRepository,
+    this._tokenManager,
   ) : super(const AuthState()) {
     on<AppStarted>(_onAppStarted);
     on<AdminLoginRequested>(_onAdminLoginRequested);
@@ -252,6 +285,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<RegisterUser>(_onRegisterUser);
     on<VerifyEmailRequested>(_onVerifyEmailRequested);
     on<ResendOtpRequested>(_onResendOtpRequested);
+    on<ForgotPasswordRequested>(_onForgotPasswordRequested);
+    on<ResetPasswordRequested>(_onResetPasswordRequested);
     on<StartTrial>(_onStartTrial);
     on<Subscribe>(_onSubscribe);
     on<UpdateProfile>(_onUpdateProfile);
@@ -261,6 +296,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   void _onResetAuthStatus(ResetAuthStatus event, Emitter<AuthState> emit) {
     emit(state.copyWith(status: AuthStatus.unauthenticated));
+  }
+
+  void _onClearError(ClearError event, Emitter<AuthState> emit) {
+    emit(state.copyWith(error: null, message: null));
   }
 
   Future<void> _onAdminLoginRequested(AdminLoginRequested event, Emitter<AuthState> emit) async {
@@ -328,8 +367,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       error: result.error,
       userRole: result.userRole,
       deviceId: result.deviceId,
+      timestamp: DateTime.now(),
       userProfile: result.userProfile,
     );
+  }
+
+  Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(status: AuthStatus.loading));
+    await _logoutUseCase(const NoParams());
+    emit(state.copyWith(
+      status: AuthStatus.unauthenticated,
+      userProfile: null,
+      userRole: null,
+    ));
   }
 
   Future<void> _onRegisterUser(RegisterUser event, Emitter<AuthState> emit) async {
@@ -353,6 +403,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(state.copyWith(
           status: AuthStatus.needsVerification,
           userProfile: data.profile,
+          error: null,
+          rememberedEmail: event.email,
         ));
       },
     );
@@ -360,40 +412,40 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onVerifyEmailRequested(VerifyEmailRequested event, Emitter<AuthState> emit) async {
     emit(state.copyWith(status: AuthStatus.loading));
-    final result = await _userAuthRepository.verifyEmail(
-      email: event.email,
-      code: event.code,
-    );
+    final result = await _userAuthRepository.verifyEmail(email: event.email, code: event.code);
 
     await result.fold(
-      (failure) async => emit(state.copyWith(
-        status: AuthStatus.needsVerification,
-        error: failure.message,
-      )),
+      (failure) async {
+        emit(state.copyWith(
+          status: AuthStatus.needsVerification,
+          error: failure.message,
+        ));
+      },
       (data) async {
         final deviceIdEither = await _getDeviceIdUseCase(const NoParams());
         final deviceId = deviceIdEither.getOrElse(() => null);
-        
+
         final profile = data.profile.copyWith(uuid: deviceId);
         await _userProfileRepository.saveProfile(profile);
+
+        if (!profile.hasAccess) {
+          emit(state.copyWith(
+            status: AuthStatus.needsSubscription,
+            userProfile: profile,
+            deviceId: deviceId,
+          ));
+          return;
+        }
 
         if (deviceId != null) {
           await _approveDeviceUseCase(ApproveDeviceParams(deviceId: deviceId));
         }
 
-        AuthStatus nextStatus;
-        if (profile.businessType == null) {
-          nextStatus = AuthStatus.authenticatedDriver;
-        } else if (!profile.hasAccess) {
-          nextStatus = AuthStatus.needsSubscription;
-        } else {
-          nextStatus = AuthStatus.authenticatedDriver;
-        }
-
         emit(state.copyWith(
-          status: nextStatus,
+          status: AuthStatus.authenticatedDriver,
           userProfile: profile,
           deviceId: deviceId,
+          error: null,
         ));
       },
     );
@@ -403,118 +455,111 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final result = await _userAuthRepository.resendOtp(event.email);
     result.fold(
       (failure) => emit(state.copyWith(error: failure.message)),
-      (_) => null,
+      (_) => emit(state.copyWith(message: 'Código de verificación reenviado.')),
+    );
+  }
+
+  Future<void> _onForgotPasswordRequested(ForgotPasswordRequested event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(status: AuthStatus.loading));
+    final result = await _forgotPasswordUseCase(event.email);
+    result.fold(
+      (failure) => emit(state.copyWith(
+        status: AuthStatus.unauthenticated,
+        error: failure.message,
+      )),
+      (_) => emit(state.copyWith(
+        status: AuthStatus.forgotPasswordOtpSent,
+        message: 'Código de recuperación enviado a tu correo.',
+        rememberedEmail: event.email,
+      )),
+    );
+  }
+
+  Future<void> _onResetPasswordRequested(ResetPasswordRequested event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(status: AuthStatus.loading));
+    final result = await _resetPasswordUseCase(
+      ResetPasswordParams(
+        email: event.email,
+        code: event.code,
+        newPassword: event.newPassword,
+      ),
+    );
+    result.fold(
+      (failure) => emit(state.copyWith(
+        status: AuthStatus.forgotPasswordOtpSent,
+        error: failure.message,
+      )),
+      (_) => emit(state.copyWith(
+        status: AuthStatus.passwordResetSuccess,
+        message: 'Contraseña restablecida correctamente. Inicia sesión.',
+      )),
     );
   }
 
   Future<void> _onStartTrial(StartTrial event, Emitter<AuthState> emit) async {
-    AppLogger.d('AuthBloc: Start trial requested');
-    emit(state.copyWith(status: AuthStatus.loading, error: null));
+    emit(state.copyWith(status: AuthStatus.loading));
     final result = await _startTrialUseCase(const NoParams());
-
-    await result.fold(
-      (failure) async {
-        AppLogger.e('AuthBloc: Start trial failed: ${failure.message}');
-        emit(state.copyWith(
-          status: AuthStatus.needsSubscription,
-          error: failure.message,
-        ));
-      },
-      (profile) async {
-        AppLogger.d('AuthBloc: Start trial successful');
-        final deviceIdEither = await _getDeviceIdUseCase(const NoParams());
-        final deviceId = deviceIdEither.getOrElse(() => null);
-        
-        final updatedProfile = profile.copyWith(uuid: deviceId);
-        await _userProfileRepository.saveProfile(updatedProfile);
-
-        if (deviceId != null) {
-          await _approveDeviceUseCase(ApproveDeviceParams(deviceId: deviceId));
-        }
-
+    
+    result.fold(
+      (failure) => emit(state.copyWith(
+        status: AuthStatus.needsSubscription,
+        error: failure.message,
+      )),
+      (profile) {
         emit(state.copyWith(
           status: AuthStatus.authenticatedDriver,
-          deviceId: deviceId,
-          userProfile: updatedProfile,
+          userProfile: profile,
         ));
       },
     );
   }
 
   Future<void> _onSubscribe(Subscribe event, Emitter<AuthState> emit) async {
-    emit(state.copyWith(status: AuthStatus.loading, error: null));
-
-    if (event.provider != null) {
-      final paymentResult = await _paymentGatewayRepository.processPayment(
-        provider: event.provider!,
-        amount: event.amount,
-        currency: 'PEN',
-        description: 'Suscripción mensual SonoPay',
-      );
-
-      final errorOccurred = await paymentResult.fold(
-        (failure) async {
-          emit(state.copyWith(
-            status: AuthStatus.needsSubscription,
-            error: failure.message,
-          ));
-          return true;
-        },
-        (success) async {
-          if (!success.success) {
-            emit(state.copyWith(
-              status: AuthStatus.needsSubscription,
-              error: success.errorMessage ?? 'El pago no pudo ser procesado',
-            ));
-            return true;
-          }
-          return false;
-        },
-      );
-      if (errorOccurred) return;
+    emit(state.copyWith(status: AuthStatus.loading));
+    
+    if (state.userProfile == null) {
+      emit(state.copyWith(
+        status: AuthStatus.unauthenticated,
+        error: 'Usuario no encontrado',
+      ));
+      return;
     }
 
-    UserProfile? profile = state.userProfile;
-    final deviceIdEither = await _getDeviceIdUseCase(const NoParams());
-    final String? currentDeviceId = deviceIdEither.getOrElse(() => null);
+    final result = await _activateSubscriptionUseCase(
+      ActivateSubscriptionParams(profile: state.userProfile!),
+    );
 
-    if (profile == null) {
-      profile = UserProfile.createSubscription(
-        name: 'Usuario SonoPay',
-        uuid: currentDeviceId,
-      );
-      await _userProfileRepository.saveProfile(profile);
-    } else {
-      final result = await _activateSubscriptionUseCase(
-        ActivateSubscriptionParams(profile: profile),
-      );
-      
-      final errorOccurred = await result.fold(
-        (failure) async {
-          emit(state.copyWith(
-            status: AuthStatus.needsSubscription,
-            error: 'Pago exitoso, pero hubo un error al activar la cuenta: ${failure.message}',
-          ));
-          return true;
-        },
-        (updatedProfile) async {
-          profile = updatedProfile;
-          return false;
-        },
-      );
-      if (errorOccurred) return;
-    }
+    result.fold(
+      (failure) => emit(state.copyWith(
+        status: AuthStatus.needsSubscription,
+        error: failure.message,
+      )),
+      (profile) {
+        emit(state.copyWith(
+          status: AuthStatus.authenticatedDriver,
+          userProfile: profile,
+        ));
+      },
+    );
+  }
 
-    if (currentDeviceId != null) {
-      await _approveDeviceUseCase(ApproveDeviceParams(deviceId: currentDeviceId));
-    }
+  Future<void> _onUpdateProfile(UpdateProfile event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(status: AuthStatus.loading));
+    final result = await _updateProfileUseCase(
+      UpdateProfileParams(
+        name: event.name,
+        phone: event.phone,
+        businessType: event.businessType,
+      ),
+    );
 
-    emit(state.copyWith(
-      status: AuthStatus.authenticatedDriver,
-      deviceId: currentDeviceId,
-      userProfile: profile,
-      error: null,
-    ));
+    result.fold(
+      (failure) => emit(state.copyWith(error: failure.message)),
+      (profile) => emit(state.copyWith(
+        status: AuthStatus.authenticatedDriver,
+        userProfile: profile,
+      )),
+    );
   }
 
   Future<void> _onLoginUserRequested(LoginUserRequested event, Emitter<AuthState> emit) async {
@@ -552,6 +597,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final profile = data.profile.copyWith(uuid: deviceId);
         await _userProfileRepository.saveProfile(profile);
 
+        // Verificamos si el usuario tiene rol administrativo (ej. diego_master)
+        final userRole = await _tokenManager.getUserRole();
+        if (userRole == 'ADMIN' || userRole == 'SUPER_ADMIN' || userRole == 'SUPERVISOR') {
+          AppLogger.i('AuthBloc: Login con rol administrativo ($userRole) detectado. Redirigiendo al panel.');
+          emit(state.copyWith(
+            status: AuthStatus.authenticatedAdmin,
+            userProfile: profile,
+            userRole: userRole,
+            error: null,
+          ));
+          return;
+        }
+
         if (!profile.hasAccess) {
           emit(state.copyWith(
             status: AuthStatus.needsSubscription,
@@ -569,169 +627,65 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           status: AuthStatus.authenticatedDriver,
           userProfile: profile,
           deviceId: deviceId,
+          error: null,
         ));
       },
     );
   }
 
   Future<void> _onGoogleLoginRequested(GoogleLoginRequested event, Emitter<AuthState> emit) async {
-    AppLogger.d('AuthBloc: Google login requested');
-    emit(state.copyWith(status: AuthStatus.loading, error: null));
-    
+    emit(state.copyWith(status: AuthStatus.loading));
     try {
       final googleUser = await _googleAuthService.signIn();
-      
-      if (googleUser != null) {
-        AppLogger.d('AuthBloc: Google user obtained: ${googleUser.email}');
-        
-        final name = googleUser.displayName ?? 'Usuario Google';
-        final email = googleUser.email;
-        final googleId = googleUser.id;
-        
-        final result = await _userAuthRepository.googleLogin(
-          email: email,
-          name: name,
-          googleId: googleId,
-        );
+      if (googleUser == null) {
+        emit(state.copyWith(status: AuthStatus.unauthenticated));
+        return;
+      }
 
-        await result.fold(
-          (failure) async {
-            AppLogger.e('AuthBloc: Google Login failed: ${failure.message}');
-            
-            // Si el error es de base de datos o credenciales, damos un mensaje claro
-            String userError = "Error al vincular cuenta de Google.";
-            if (failure.message.contains('database') || failure.message.contains('credentials')) {
-              userError = "Error de sincronización con el servidor. Por favor, intenta de nuevo en unos momentos.";
-            } else {
-              userError = failure.message;
-            }
+      final result = await _userAuthRepository.googleLogin(
+        email: googleUser.email,
+        name: googleUser.displayName ?? 'Usuario',
+        googleId: googleUser.id,
+      );
 
+      await result.fold(
+        (failure) async => emit(state.copyWith(
+          status: AuthStatus.unauthenticated,
+          error: failure.message,
+        )),
+        (data) async {
+          final deviceIdEither = await _getDeviceIdUseCase(const NoParams());
+          final deviceId = deviceIdEither.getOrElse(() => null);
+
+          final profile = data.profile.copyWith(uuid: deviceId);
+          await _userProfileRepository.saveProfile(profile);
+
+          if (!profile.hasAccess) {
             emit(state.copyWith(
-              status: AuthStatus.unauthenticated,
-              error: userError,
-            ));
-          },
-          (data) async {
-            AppLogger.d('AuthBloc: Google Login successful for $email');
-            
-            // 1. Guardar token inmediatamente
-            await _userAuthRepository.saveToken(data.token);
-            
-            final deviceIdEither = await _getDeviceIdUseCase(const NoParams());
-            final deviceId = deviceIdEither.getOrElse(() => null);
-            
-            final profile = data.profile.copyWith(uuid: deviceId);
-            
-            // 2. Guardar perfil localmente
-            await _userProfileRepository.saveProfile(profile);
-            
-            if (deviceId != null) {
-              AppLogger.d('AuthBloc: Linking device $deviceId');
-              await _approveDeviceUseCase(ApproveDeviceParams(deviceId: deviceId));
-            }
-
-            AuthStatus nextStatus;
-            if (!profile.hasAccess) {
-              nextStatus = AuthStatus.needsSubscription;
-            } else {
-              nextStatus = AuthStatus.authenticatedDriver;
-            }
-
-            AppLogger.i('AuthBloc: Moving to state $nextStatus for user ${profile.email}');
-            
-            // Forzar una pequeña pausa para asegurar que el token se guardó en disco
-            await Future.delayed(const Duration(milliseconds: 200));
-            
-            emit(state.copyWith(
-              status: nextStatus,
+              status: AuthStatus.needsSubscription,
               userProfile: profile,
               deviceId: deviceId,
-              error: null,
             ));
-          },
-        );
-      } else {
-        AppLogger.w('AuthBloc: Google Sign-In returned null (cancelled or config error)');
-        emit(state.copyWith(
-          status: AuthStatus.unauthenticated,
-          error: "No se seleccionó ninguna cuenta de Google.",
-        ));
-      }
-    } catch (e, stack) {
-      AppLogger.e('AuthBloc: Critical error in Google login', e, stack);
-      String rawError = e.toString();
-      String userMessage = "Error de Google";
+            return;
+          }
 
-      if (rawError.contains('10')) {
-        userMessage = "Firma SHA-1 autorizada. Si persiste, borra caché de Google Play Services.";
-      } else if (rawError.contains('12500')) {
-        userMessage = "Revisar configuración de soporte en Firebase.";
-      }
+          if (deviceId != null) {
+            await _approveDeviceUseCase(ApproveDeviceParams(deviceId: deviceId));
+          }
 
+          emit(state.copyWith(
+            status: AuthStatus.authenticatedDriver,
+            userProfile: profile,
+            deviceId: deviceId,
+            error: null,
+          ));
+        },
+      );
+    } catch (e) {
       emit(state.copyWith(
         status: AuthStatus.unauthenticated,
-        error: "$userMessage\n(Detalle: $rawError)",
+        error: 'Error en la autenticación con Google: ${e.toString()}',
       ));
     }
-  }
-
-  Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
-    final result = await _logoutUseCase(const NoParams());
-    final rememberedEmail = state.rememberedEmail;
-    result.fold(
-      (failure) => emit(AuthState(
-        status: AuthStatus.unauthenticated, 
-        error: event.message ?? failure.message,
-        rememberedEmail: rememberedEmail,
-      )),
-      (_) => emit(AuthState(
-        status: AuthStatus.unauthenticated,
-        error: event.message,
-        rememberedEmail: rememberedEmail,
-      )),
-    );
-  }
-
-  Future<void> _onUpdateProfile(UpdateProfile event, Emitter<AuthState> emit) async {
-    AppLogger.d('AuthBloc: Update profile requested');
-    emit(state.copyWith(status: AuthStatus.loading));
-
-    final result = await _updateProfileUseCase(
-      UpdateProfileParams(
-        name: event.name,
-        phone: event.phone,
-        businessType: event.businessType,
-      ),
-    );
-
-    await result.fold(
-      (failure) async {
-        AppLogger.e('AuthBloc: Update profile failed: ${failure.message}');
-        emit(state.copyWith(
-          status: AuthStatus.authenticatedDriver,
-          error: failure.message,
-        ));
-      },
-      (profile) async {
-        AppLogger.d('AuthBloc: Update profile successful');
-        await _userProfileRepository.saveProfile(profile);
-        
-        AuthStatus nextStatus;
-        if (!profile.hasAccess) {
-          nextStatus = AuthStatus.needsSubscription;
-        } else {
-          nextStatus = AuthStatus.authenticatedDriver;
-        }
-
-        emit(state.copyWith(
-          status: nextStatus,
-          userProfile: profile,
-        ));
-      },
-    );
-  }
-
-  void _onClearError(ClearError event, Emitter<AuthState> emit) {
-    emit(state.copyWith(error: null));
   }
 }

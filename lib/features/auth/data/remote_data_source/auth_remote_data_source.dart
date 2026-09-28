@@ -48,6 +48,14 @@ abstract class AuthRemoteDataSource {
 
   Future<Either<Failure, void>> resendOtp(String email);
 
+  Future<Either<Failure, void>> forgotPassword(String email);
+
+  Future<Either<Failure, void>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  });
+
   Future<Either<Failure, ({String token, UserProfileDto profile})>> googleLogin({
     required String email,
     required String name,
@@ -244,7 +252,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<Either<Failure, void>> unapproveDevice(String uuid) async {
     try {
-      await _dio.patch('/devices/$uuid/unapprove');
+      await _dio.patch('/devices/$uuid/unapprove', data: {});
       return const Right(null);
     } on DioException catch (e) {
       return Left(NetworkErrorHandler.handleDioError(e));
@@ -296,6 +304,40 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } on DioException catch (e) {
       return Left(NetworkErrorHandler.handleDioError(e));
     } catch (e) {
+      return Left(NetworkErrorHandler.handleGeneralError(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> forgotPassword(String email) async {
+    try {
+      await _dio.post('/users/forgot-password', data: {'email': email});
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(NetworkErrorHandler.handleDioError(e));
+    } catch (e) {
+      AppLogger.e('Error en forgotPassword', e);
+      return Left(NetworkErrorHandler.handleGeneralError(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await _dio.post('/users/reset-password', data: {
+        'email': email,
+        'code': code,
+        'newPassword': newPassword,
+      });
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(NetworkErrorHandler.handleDioError(e));
+    } catch (e) {
+      AppLogger.e('Error en resetPassword', e);
       return Left(NetworkErrorHandler.handleGeneralError(e));
     }
   }
