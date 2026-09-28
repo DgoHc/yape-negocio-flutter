@@ -12,7 +12,7 @@ abstract class AdminRemoteDataSource {
   Future<void> updateUser(String id, {String? role, String? status});
   Future<void> deleteUser(String id);
   Future<List<Map<String, dynamic>>> getAppUsers();
-  Future<void> updateAppUserSubscription(String id, bool isSubscribed);
+  Future<void> updateAppUserSubscription(String id, bool isSubscribed, {int? days});
   Future<void> createAppUser({
     required String name,
     required String email,
@@ -121,10 +121,13 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
   }
 
   @override
-  Future<void> updateAppUserSubscription(String id, bool isSubscribed) async {
+  Future<void> updateAppUserSubscription(String id, bool isSubscribed, {int? days}) async {
     await _dio.patch(
       '/admin/app-users/$id/subscription',
-      data: {'isSubscribed': isSubscribed},
+      data: {
+        'isSubscribed': isSubscribed,
+        if (days != null) 'days': days,
+      },
       options: await _getOptions(),
     );
   }

@@ -13,7 +13,7 @@ abstract class AdminRepository {
   Future<Either<Failure, void>> deleteUser(String id);
 
   Future<Either<Failure, List<Map<String, dynamic>>>> getAppUsers();
-  Future<Either<Failure, void>> updateAppUserSubscription(String id, bool isSubscribed);
+  Future<Either<Failure, void>> updateAppUserSubscription(String id, bool isSubscribed, {int? days});
   Future<Either<Failure, void>> createAppUser({
     required String name,
     required String email,

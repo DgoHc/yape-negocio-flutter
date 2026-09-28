@@ -101,9 +101,9 @@ class AdminRepositoryImpl implements AdminRepository {
   }
 
   @override
-  Future<Either<Failure, void>> updateAppUserSubscription(String id, bool isSubscribed) async {
+  Future<Either<Failure, void>> updateAppUserSubscription(String id, bool isSubscribed, {int? days}) async {
     try {
-      await _remoteDataSource.updateAppUserSubscription(id, isSubscribed);
+      await _remoteDataSource.updateAppUserSubscription(id, isSubscribed, days: days);
       return const Right(null);
     } catch (e) {
       return Left(GeneralFailure(e.toString()));

@@ -31,10 +31,11 @@ class LoadUserProfiles extends AdminEvent {}
 class UpdateUserProfileSubscription extends AdminEvent {
   final String id;
   final bool isSubscribed;
-  UpdateUserProfileSubscription({required this.id, required this.isSubscribed});
+  final int? days;
+  UpdateUserProfileSubscription({required this.id, required this.isSubscribed, this.days});
 
   @override
-  List<Object?> get props => [id, isSubscribed];
+  List<Object?> get props => [id, isSubscribed, days];
 }
 
 class CreateAppUserRequested extends AdminEvent {
@@ -264,13 +265,15 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
   Future<void> _onUpdateUserProfileSubscription(
       UpdateUserProfileSubscription event, Emitter<AdminState> emit) async {
     emit(state.copyWith(status: AdminStatus.loading));
-    final result = await _updateUserProfileSubscriptionUseCase(
-      UpdateUserProfileSubscriptionParams(id: event.id, isSubscribed: event.isSubscribed),
+    final result = await _adminRepository.updateAppUserSubscription(
+      event.id,
+      event.isSubscribed,
+      days: event.days,
     );
     result.fold(
       (failure) => emit(state.copyWith(status: AdminStatus.failure, error: failure.message)),
       (_) {
-        emit(state.copyWith(status: AdminStatus.success, message: 'Suscripción actualizada'));
+        emit(state.copyWith(status: AdminStatus.success, message: 'Suscripción actualizada correctamente'));
         add(LoadUserProfiles());
       },
     );

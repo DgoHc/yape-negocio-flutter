@@ -194,9 +194,10 @@ class AdminPanelView extends StatelessWidget {
   }
 
   Widget _buildUserProfileItem(BuildContext context, UserProfile profile) {
-    final hasAccess = profile.isSubscribed ||
-        (profile.trialEndDate != null &&
-            profile.trialEndDate!.isAfter(DateTime.now()));
+    final hasAccess = profile.hasAccess;
+    final expDateStr = profile.subscriptionEndDate != null
+        ? '${profile.subscriptionEndDate!.day}/${profile.subscriptionEndDate!.month}/${profile.subscriptionEndDate!.year}'
+        : null;
 
     return SoftCard(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -205,7 +206,7 @@ class AdminPanelView extends StatelessWidget {
           width: 40, height: 40, borderRadius: 10,
           color: hasAccess ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
           child: Icon(
-            hasAccess ? Icons.check_circle_rounded : Icons.cancel_rounded,
+            hasAccess ? Icons.verified_user_rounded : Icons.person_off_rounded,
             color: hasAccess ? AppTheme.successColor : AppTheme.errorColor,
             size: 20,
           ),
@@ -216,8 +217,16 @@ class AdminPanelView extends StatelessWidget {
           children: [
             if (profile.email != null) Text(profile.email!, style: const TextStyle(fontSize: 11)),
             if (profile.businessType != null) Text('Rubro: ${profile.businessType}', style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
-            Text('Plan: ${profile.isSubscribed ? "Suscrito (Activo)" : "Inactivo / Prueba"}',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: hasAccess ? AppTheme.successColor : AppTheme.errorColor)),
+            Text(
+              hasAccess
+                  ? (expDateStr != null ? 'Suscripción Activa (Hasta: $expDateStr)' : 'Suscripción Activa')
+                  : 'Suscripción Inactiva / Suspendida',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: hasAccess ? AppTheme.successColor : AppTheme.errorColor,
+              ),
+            ),
           ],
         ),
         trailing: profile.id == null 
@@ -226,7 +235,7 @@ class AdminPanelView extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Switch(
-                  activeColor: AppTheme.primaryColor,
+                  activeThumbColor: AppTheme.primaryColor,
                   value: profile.isSubscribed,
                   onChanged: (newValue) {
                     context.read<AdminBloc>().add(UpdateUserProfileSubscription(
@@ -238,26 +247,44 @@ class AdminPanelView extends StatelessWidget {
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert_rounded),
                   onSelected: (value) {
-                    if (value == 'edit') {
+                    if (value == 'manage_plan') {
+                      _showManagePlanDialog(context, profile);
+                    } else if (value == 'edit') {
                       _showEditAppUserDialog(context, profile);
-                    } else if (value == 'toggle') {
-                      context.read<AdminBloc>().add(UpdateUserProfileSubscription(
-                            id: profile.id!,
-                            isSubscribed: !profile.isSubscribed,
-                          ));
                     } else if (value == 'delete') {
                       _confirmDeleteAppUser(context, profile);
                     }
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'edit', child: Text('Editar Perfil')),
-                    PopupMenuItem(
-                      value: 'toggle',
-                      child: Text(profile.isSubscribed ? 'Desactivar Plan' : 'Activar Plan'),
+                    const PopupMenuItem(
+                      value: 'manage_plan',
+                      child: Row(
+                        children: [
+                          Icon(Icons.card_membership_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text('Gestionar Plan / Días'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text('Editar Perfil'),
+                        ],
+                      ),
                     ),
                     const PopupMenuItem(
                       value: 'delete',
-                      child: Text('Eliminar Perfil', style: TextStyle(color: AppTheme.errorColor)),
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_forever_rounded, size: 18, color: AppTheme.errorColor),
+                          SizedBox(width: 8),
+                          Text('Eliminar Perfil', style: TextStyle(color: AppTheme.errorColor)),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -282,6 +309,79 @@ class AdminPanelView extends StatelessWidget {
           _showAddAppUserDialog(context);
         }
       },
+    );
+  }
+
+  void _showManagePlanDialog(BuildContext context, UserProfile profile) {
+    int selectedDays = 30;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (statefulContext, setState) => AlertDialog(
+          backgroundColor: AppTheme.backgroundColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          title: Text('Gestionar Plan - ${profile.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Selecciona la vigencia de la suscripción:', style: TextStyle(fontSize: 13)),
+              const SizedBox(height: 12),
+              RadioListTile<int>(
+                title: const Text('1 Mes (30 Días)'),
+                value: 30,
+                groupValue: selectedDays,
+                onChanged: (val) => setState(() => selectedDays = val!),
+              ),
+              RadioListTile<int>(
+                title: const Text('3 Meses (90 Días)'),
+                value: 90,
+                groupValue: selectedDays,
+                onChanged: (val) => setState(() => selectedDays = val!),
+              ),
+              RadioListTile<int>(
+                title: const Text('1 Año (365 Días)'),
+                value: 365,
+                groupValue: selectedDays,
+                onChanged: (val) => setState(() => selectedDays = val!),
+              ),
+              RadioListTile<int>(
+                title: const Text('Acceso Ilimitado (10 Años)'),
+                value: 3650,
+                groupValue: selectedDays,
+                onChanged: (val) => setState(() => selectedDays = val!),
+              ),
+              RadioListTile<int>(
+                title: const Text('Suspender Plan Ahora', style: TextStyle(color: AppTheme.errorColor, fontWeight: FontWeight.bold)),
+                value: 0,
+                groupValue: selectedDays,
+                onChanged: (val) => setState(() => selectedDays = val!),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
+            AppButton(
+              label: selectedDays == 0 ? 'Suspender' : 'Activar Plan',
+              isSecondary: selectedDays == 0,
+              onPressed: () {
+                if (profile.id != null) {
+                  final bool activate = selectedDays > 0;
+                  context.read<AdminBloc>().add(
+                        UpdateUserProfileSubscription(
+                          id: profile.id!,
+                          isSubscribed: activate,
+                          days: activate ? selectedDays : null,
+                        ),
+                      );
+                  Navigator.pop(dialogContext);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -317,7 +417,7 @@ class AdminPanelView extends StatelessWidget {
                 SwitchListTile(
                   title: const Text('Activar Plan Suscrito'),
                   value: isSubscribed,
-                  activeColor: AppTheme.primaryColor,
+                  activeThumbColor: AppTheme.primaryColor,
                   onChanged: (val) => setState(() => isSubscribed = val),
                 ),
               ],
@@ -384,7 +484,7 @@ class AdminPanelView extends StatelessWidget {
                 SwitchListTile(
                   title: const Text('Estado de Suscripción'),
                   value: isSubscribed,
-                  activeColor: AppTheme.primaryColor,
+                  activeThumbColor: AppTheme.primaryColor,
                   onChanged: (val) => setState(() => isSubscribed = val),
                 ),
               ],
@@ -422,11 +522,11 @@ class AdminPanelView extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.backgroundColor,
         title: const Text('Eliminar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('¿Estás seguro de eliminar el perfil de "${profile.name}"? Esta acción no se puede deshacer.'),
+        content: Text('¿Estás seguro de eliminar el perfil de "${profile.name}" (${profile.email ?? ""})?\n\nSe desvincularán sus dispositivos, notificaciones y registros asociados.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
           AppButton(
-            label: 'Eliminar',
+            label: 'Eliminar Definivamente',
             isSecondary: true,
             onPressed: () {
               if (profile.id != null) {
