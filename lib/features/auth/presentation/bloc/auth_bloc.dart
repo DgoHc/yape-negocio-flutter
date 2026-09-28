@@ -19,7 +19,7 @@ import '../../domain/usecases/update_profile_use_case.dart';
 import '../../domain/usecases/forgot_password_use_case.dart';
 import '../../domain/usecases/reset_password_use_case.dart';
 import '../../domain/repositories/user_profile_repository.dart';
-import '../../domain/repositories/payment_gateway_repository.dart';
+
 import '../../domain/repositories/remember_me_repository.dart';
 import '../../domain/repositories/user_auth_repository.dart';
 import '../../domain/entities/payment_provider.dart';
@@ -250,7 +250,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final ForgotPasswordUseCase _forgotPasswordUseCase;
   final ResetPasswordUseCase _resetPasswordUseCase;
   final UserProfileRepository _userProfileRepository;
-  final PaymentGatewayRepository _paymentGatewayRepository;
   final RememberMeRepository _rememberMeRepository;
   final GoogleAuthService _googleAuthService;
   final UserAuthRepository _userAuthRepository;
@@ -270,7 +269,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     this._forgotPasswordUseCase,
     this._resetPasswordUseCase,
     this._userProfileRepository,
-    this._paymentGatewayRepository,
     this._rememberMeRepository,
     this._googleAuthService,
     this._userAuthRepository,

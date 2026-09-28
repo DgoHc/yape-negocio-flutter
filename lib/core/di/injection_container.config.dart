@@ -422,7 +422,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i288.ForgotPasswordUseCase>(),
         gh<_i289.ResetPasswordUseCase>(),
         gh<_i154.UserProfileRepository>(),
-        gh<_i544.PaymentGatewayRepository>(),
         gh<_i373.RememberMeRepository>(),
         gh<_i947.GoogleAuthService>(),
         gh<_i843.UserAuthRepository>(),
