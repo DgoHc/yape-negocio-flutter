@@ -6,7 +6,6 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/yt_design_system.dart';
 import '../../../../core/utils/clipboard_payment_detector.dart';
-import '../../../../core/services/tts_service.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../payments/presentation/bloc/payments_bloc.dart';
 import '../../../notifications/data/notification_platform_service.dart';
@@ -171,7 +170,7 @@ class _DashboardViewState extends State<DashboardView> with WidgetsBindingObserv
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20.0),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               const SizedBox(height: 8),
 
@@ -182,28 +181,23 @@ class _DashboardViewState extends State<DashboardView> with WidgetsBindingObserv
                                 onLogout: () => _showLogoutDialog(context),
                               ),
 
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
 
-                              // PASTILLA DE ESTADO Y PRUEBA GRATUITA
-                              Row(
-                                children: [
-                                  const Expanded(child: _StatusPill()),
-                                  if (profile != null && profile.isTrialActive && profile.trialEndDate != null) ...[
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: _TrialPill(
-                                        daysLeft: profile.trialEndDate!
-                                            .difference(DateTime.now())
-                                            .inDays,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
+                              // PASTILLA DE ESTADO (CADA UNA EN SU PROPIA FILA DE ANCHO COMPLETO)
+                              const _StatusPill(),
 
-                              const SizedBox(height: 32),
+                              if (profile != null && profile.isTrialActive && profile.trialEndDate != null) ...[
+                                const SizedBox(height: 8),
+                                _TrialPill(
+                                  daysLeft: profile.trialEndDate!
+                                      .difference(DateTime.now())
+                                      .inDays,
+                                ),
+                              ],
 
-                              // TARJETA DE BALANCE EN VIDRIO AMARILLO LIGERO
+                              const SizedBox(height: 28),
+
+                              // TARJETA DE BALANCE EN VIDRIO AMARILLO LIGERO (PERFECTAMENTE CENTRADO)
                               _BalanceCard(
                                 dailyTotal: paymentsState.dailyTotal,
                               ),
@@ -418,7 +412,7 @@ class _HeaderIconButton extends StatelessWidget {
   }
 }
 
-// --- 3. PASTILLA DE ESTADO EN VIDRIO ---
+// --- 3. PASTILLA DE ESTADO EN VIDRIO (FILA INDIVIDUAL DE ANCHO COMPLETO) ---
 class _StatusPill extends StatefulWidget {
   const _StatusPill();
 
@@ -465,27 +459,29 @@ class _StatusPillState extends State<_StatusPill> with WidgetsBindingObserver {
         return _GlassContainer(
           borderRadius: 100, // Radio completo
           backgroundColor: active ? const Color(0x3822C55E) : const Color(0x38EF4444), // Verde o Rojo al 22%
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: InkWell(
             onTap: active ? null : () => sl<NotificationPlatformService>().openNotificationSettings(),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 _PulsingDot(color: active ? DashboardDesignTokens.cGreenMain : AppTheme.errorColor),
-                const SizedBox(width: 8),
-                Flexible(
+                const SizedBox(width: 10),
+                Expanded(
                   child: Text(
-                    active ? 'Notificaciones activas' : 'Notificaciones inactivas',
+                    active ? 'Notificaciones activas' : 'Notificaciones inactivas (Toca para activar)',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: active ? DashboardDesignTokens.cGreenDarkText : AppTheme.errorColor,
                       fontFamily: 'Plus Jakarta Sans',
                     ),
                   ),
                 ),
+                if (!active)
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppTheme.errorColor),
               ],
             ),
           ),
@@ -530,7 +526,7 @@ class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderState
       builder: (context, child) {
         return CustomPaint(
           painter: _PulsingDotPainter(_controller.value, widget.color),
-          child: SizedBox(width: 10, height: 10),
+          child: const SizedBox(width: 10, height: 10),
         );
       },
     );
@@ -548,7 +544,6 @@ class _PulsingDotPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final baseRadius = size.width / 2;
 
-    // Anillo exterior que crece hasta 3x y se desvanece
     final ringRadius = baseRadius + (progress * baseRadius * 2);
     final ringOpacity = (1.0 - progress).clamp(0.0, 1.0);
     final ringPaint = Paint()
@@ -558,7 +553,6 @@ class _PulsingDotPainter extends CustomPainter {
 
     canvas.drawCircle(center, ringRadius, ringPaint);
 
-    // Punto central sólido
     final dotPaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
@@ -570,7 +564,7 @@ class _PulsingDotPainter extends CustomPainter {
   bool shouldRepaint(covariant _PulsingDotPainter oldDelegate) => true;
 }
 
-// --- 4. PASTILLA DE PRUEBA GRATUITA ---
+// --- 4. PASTILLA DE PRUEBA GRATUITA (FILA INDIVIDUAL) ---
 class _TrialPill extends StatelessWidget {
   final int daysLeft;
 
@@ -581,29 +575,30 @@ class _TrialPill extends StatelessWidget {
     return _GlassContainer(
       borderRadius: 100,
       backgroundColor: const Color(0x9EFFFFFF), // Blanco al 62%
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
+          const Icon(Icons.stars_rounded, color: DashboardDesignTokens.cYellowMain, size: 18),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Prueba: $daysLeft días',
+              'Prueba gratuita: $daysLeft días restantes',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 12.5,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: DashboardDesignTokens.cDarkBrownMain,
                 fontFamily: 'Plus Jakarta Sans',
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           InkWell(
             onTap: () => context.push('/subscription'),
             borderRadius: BorderRadius.circular(100),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: DashboardDesignTokens.cYellowMain,
                 borderRadius: BorderRadius.circular(100),
@@ -611,7 +606,7 @@ class _TrialPill extends StatelessWidget {
               child: const Text(
                 'Mejorar plan',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   color: DashboardDesignTokens.cDarkBrownMain,
                   fontFamily: 'Plus Jakarta Sans',
@@ -625,7 +620,7 @@ class _TrialPill extends StatelessWidget {
   }
 }
 
-// --- 5. TARJETA DE BALANCE DE HOY EN VIDRIO ---
+// --- 5. TARJETA DE BALANCE DE HOY EN VIDRIO (PERFECTAMENTE CENTRADO) ---
 class _BalanceCard extends StatelessWidget {
   final double dailyTotal;
 
@@ -633,83 +628,95 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassContainer(
-      borderRadius: 32,
-      backgroundColor: const Color(0x80FFD966), // Amarillo claro #FFD966 al 50%
-      padding: const EdgeInsets.all(30),
-      child: Column(
-        children: [
-          const Text(
-            'BALANCE DE HOY',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.68, // 0.14em
-              color: DashboardDesignTokens.cDarkBrownSecondary,
-              fontFamily: 'Plus Jakarta Sans',
+    return Container(
+      width: double.infinity,
+      alignment: Alignment.center,
+      child: _GlassContainer(
+        borderRadius: 32,
+        backgroundColor: const Color(0x80FFD966), // Amarillo claro #FFD966 al 50%
+        padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text(
+              'BALANCE DE HOY',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.68, // 0.14em
+                color: DashboardDesignTokens.cDarkBrownSecondary,
+                fontFamily: 'Plus Jakarta Sans',
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // Monto con Cifras Tabulares
-          FittedBox(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
-                children: [
-                  const TextSpan(
-                    text: 'S/ ',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: DashboardDesignTokens.cDarkBrownSecondary,
-                    ),
-                  ),
-                  TextSpan(
-                    text: dailyTotal.toStringAsFixed(2),
+            // Monto con Cifras Tabulares Centrado
+            Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
                     style: const TextStyle(
-                      fontSize: 52,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1.5,
-                      color: DashboardDesignTokens.cDarkBrownMain,
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                    children: [
+                      const TextSpan(
+                        text: 'S/ ',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: DashboardDesignTokens.cDarkBrownSecondary,
+                        ),
+                      ),
+                      TextSpan(
+                        text: dailyTotal.toStringAsFixed(2),
+                        style: const TextStyle(
+                          fontSize: 52,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.5,
+                          color: DashboardDesignTokens.cDarkBrownMain,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Pastilla "Ingresos en tiempo real"
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0x80FFFFFF), // Blanco al 50%
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: Colors.white, width: 1.0),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _PulsingDot(color: DashboardDesignTokens.cGreenMain),
+                  SizedBox(width: 8),
+                  Text(
+                    'Ingresos en tiempo real',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: DashboardDesignTokens.cGreenDarkText,
+                      fontFamily: 'Plus Jakarta Sans',
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Pastilla "Ingresos en tiempo real"
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0x80FFFFFF), // Blanco al 50%
-              borderRadius: BorderRadius.circular(100),
-              border: Border.all(color: Colors.white, width: 1.0),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _PulsingDot(color: DashboardDesignTokens.cGreenMain),
-                SizedBox(width: 8),
-                Text(
-                  'Ingresos en tiempo real',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: DashboardDesignTokens.cGreenDarkText,
-                    fontFamily: 'Plus Jakarta Sans',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -725,17 +732,20 @@ class _EmptyPaymentsGlassCard extends StatelessWidget {
       borderRadius: 26,
       backgroundColor: const Color(0x80FFFFFF), // Blanco 50%
       padding: const EdgeInsets.all(28),
-      child: Center(
+      child: const Center(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.notifications_none_rounded,
               size: 26,
               color: DashboardDesignTokens.cDarkBrownSecondary,
             ),
-            const SizedBox(height: 10),
-            const Text(
+            SizedBox(height: 10),
+            Text(
               'Aún no hay pagos hoy',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15.5,
                 fontWeight: FontWeight.w800,
@@ -743,9 +753,10 @@ class _EmptyPaymentsGlassCard extends StatelessWidget {
                 fontFamily: 'Plus Jakarta Sans',
               ),
             ),
-            const SizedBox(height: 4),
-            const Text(
+            SizedBox(height: 4),
+            Text(
               'Tus cobros aparecerán aquí.',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
                 color: DashboardDesignTokens.cGreyText,
@@ -776,7 +787,6 @@ class _PaymentRowItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          // Avatar cuadrado de 42 dp radio 14
           Container(
             width: 42,
             height: 42,
@@ -798,7 +808,6 @@ class _PaymentRowItem extends StatelessWidget {
           ),
           const SizedBox(width: 12),
 
-          // Nombre y Método/Hora
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -827,7 +836,6 @@ class _PaymentRowItem extends StatelessWidget {
             ),
           ),
 
-          // Monto en verde oscuro
           Text(
             '+ ${payment.currency} ${payment.amount.toStringAsFixed(2)}',
             style: const TextStyle(
@@ -844,7 +852,7 @@ class _PaymentRowItem extends StatelessWidget {
   }
 }
 
-// --- 9. DOCK INFERIOR FLOTANTE EN VIDRIO ---
+// --- 9. DOCK INFERIOR FLOTANTE EN VIDRIO (BOTÓN DE ACTIVAR/DESACTIVAR AUDIO Y NOTIFICACIONES) ---
 class _FloatingBottomDock extends StatelessWidget {
   const _FloatingBottomDock();
 
@@ -856,29 +864,37 @@ class _FloatingBottomDock extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, settingsState) {
+          final isMuted = settingsState.isMuted;
+          final isDetectionActive = settingsState.isDetectionEnabled;
+
           return Row(
             children: [
+              // BOTÓN 1: ACTIVAR / SILENCIAR AUDIO
               Expanded(
                 child: _DockButton(
-                  label: 'Probar sonido',
-                  icon: Icons.volume_up_rounded,
-                  backgroundColor: DashboardDesignTokens.cYellowMain,
-                  textColor: DashboardDesignTokens.cDarkBrownMain,
+                  label: isMuted ? 'Audio Silenciado' : 'Audio Activado',
+                  icon: isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  backgroundColor: isMuted ? AppTheme.errorColor : DashboardDesignTokens.cYellowMain,
+                  textColor: isMuted ? Colors.white : DashboardDesignTokens.cDarkBrownMain,
                   onTap: () {
-                    sl<TtsService>().speak('Prueba de audio SonoPay completada correctamente.');
+                    context.read<SettingsBloc>().add(
+                          ToggleMute(!isMuted),
+                        );
                   },
                 ),
               ),
               const SizedBox(width: 8),
+
+              // BOTÓN 2: NOTIFICACIONES (ACTIVAR / DESACTIVAR DETECCIÓN)
               Expanded(
                 child: _DockButton(
-                  label: settingsState.isDetectionEnabled ? 'Notificaciones' : 'Silenciado',
-                  icon: settingsState.isDetectionEnabled ? Icons.notifications_active_rounded : Icons.notifications_off_rounded,
-                  backgroundColor: settingsState.isDetectionEnabled ? DashboardDesignTokens.cGreenMain : AppTheme.errorColor,
-                  textColor: DashboardDesignTokens.cDarkBrownMain,
+                  label: isDetectionActive ? 'Notificaciones' : 'Inactivo',
+                  icon: isDetectionActive ? Icons.notifications_active_rounded : Icons.notifications_off_rounded,
+                  backgroundColor: isDetectionActive ? DashboardDesignTokens.cGreenMain : AppTheme.errorColor,
+                  textColor: isDetectionActive ? DashboardDesignTokens.cDarkBrownMain : Colors.white,
                   onTap: () {
                     context.read<SettingsBloc>().add(
-                          ToggleDetection(!settingsState.isDetectionEnabled),
+                          ToggleDetection(!isDetectionActive),
                         );
                   },
                 ),
@@ -921,7 +937,7 @@ class _DockButtonState extends State<_DockButton> {
       onTapCancel: () => setState(() => _isPressed = false),
       onTap: widget.onTap,
       child: AnimatedScale(
-        scale: _isPressed ? 0.96 : 1.0, // Reducción a escala 0.96 al presionar
+        scale: _isPressed ? 0.96 : 1.0, // Escala 0.96 al presionar
         duration: const Duration(milliseconds: 100),
         child: Container(
           height: 52,
@@ -940,7 +956,7 @@ class _DockButtonState extends State<_DockButton> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                     color: widget.textColor,
                     fontFamily: 'Plus Jakarta Sans',
