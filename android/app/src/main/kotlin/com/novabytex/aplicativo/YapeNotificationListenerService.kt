@@ -25,7 +25,19 @@ class YapeNotificationListenerService : NotificationListenerService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForegroundService()
-        return 1
+        return 1 // START_STICKY
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        Log.d("SonoPayService", "NotificationListener connected successfully")
+        startForegroundService()
+        val data = mutableMapOf<String, Any>(
+            "status" to "connected"
+        )
+        Handler(Looper.getMainLooper()).post {
+            try { eventSink?.success(data) } catch (_: Exception) {}
+        }
     }
 
     private fun startForegroundService() {
@@ -47,7 +59,7 @@ class YapeNotificationListenerService : NotificationListenerService() {
         val notification = notificationBuilder.setOngoing(true)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("SonoPay Activo")
-            .setContentText("Detectando pagos en segundo plano...")
+            .setContentText("Detectando pagos de Yape y Plin en segundo plano...")
             .setCategory(Notification.CATEGORY_SERVICE)
             .build()
 

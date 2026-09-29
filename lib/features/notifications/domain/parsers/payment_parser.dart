@@ -13,22 +13,27 @@ class PaymentParser {
     "iniciaste sesión",
     "tu clave es",
     "seguridad es",
+    "intento de inicio",
   ];
 
-  /// Lista de regex para diferentes formatos de Yape (Personal, Negocios, etc.)
+  /// Lista de regex para diferentes formatos de Yape y Plin (Personal, Negocios, etc.)
   static final List<RegExp> _incomingPaymentRegexes = [
+    // Formato Yape 1: Te yapeó S/ 10.00 Juan Perez
+    RegExp(r"Te\s+yapeó\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+(.+)", caseSensitive: false),
+    // Formato Yape 2: Juan Perez te yapeó S/ 10.00
+    RegExp(r"(.+?)\s+te\s+yapeó\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     // Formato Negocios: ¡Te yapearon! Juan Perez - S/ 10.00
     RegExp(r"¡?Te\s+yapearon!?\s+(.+?)\s*[-–]\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
-    // Formato 1: [Nombre] te envió un pago por S/ [Monto]
+    // Formato 3: [Nombre] te envió un pago por S/ [Monto]
     RegExp(r"(.+?)\s+te\s+envió\s+un\s+pago\s+por\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
-    // Formato 2: ¡Recibiste un Yape! [Nombre] te envió (S/|PEN) [Monto]
+    // Formato 4: ¡Recibiste un Yape! [Nombre] te envió (S/|PEN) [Monto]
     RegExp(r"¡?Recibiste\s+un\s+Yape!?\s+(.+?)\s+te\s+envió\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
-    // Formato 3: [Nombre] te yapeó S/ [Monto]
-    RegExp(r"(.+?)\s+te\s+yapeó\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
-    // Formato 4: Nuevo pago de [Nombre] por (S/|PEN) [Monto]
+    // Formato 5: Nuevo pago de [Nombre] por (S/|PEN) [Monto]
     RegExp(r"Nuevo\s+pago\s+de\s+(.+?)\s+por\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
-    // Formato 5: Has recibido (S/|PEN) [Monto] de [Nombre]
+    // Formato 6: Has recibido (S/|PEN) [Monto] de [Nombre]
     RegExp(r"Has\s+recibido\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+de\s+(.+)", caseSensitive: false),
+    // Formato 7: Recibiste (S/|PEN) [Monto] de [Nombre]
+    RegExp(r"Recibiste\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+de\s+(.+)", caseSensitive: false),
     // Formato Directo: [Nombre] - S/ [Monto]
     RegExp(r"^(.+?)\s*[-–]\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)$", caseSensitive: false),
 
@@ -50,26 +55,29 @@ class PaymentParser {
       return const Left(ServerFailure('Texto vacío'));
     }
 
-    // Normalización del texto (convertir saltos de línea a espacios)
     final cleanRaw = raw.replaceAll(RegExp(r'[\r\n|]+'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
     
     String? senderName;
     double? amount;
     String? currency = "S/";
 
-    // 1. Intentar con las regex de pagos PRIMERO
     for (final regex in _incomingPaymentRegexes) {
       final match = regex.firstMatch(cleanRaw);
       if (match != null) {
-        // Lógica especial para formatos donde el nombre está al final (Scotiabank)
-        if (regex.pattern.contains('de\\\\s+\\(.+\\)') || regex.pattern.contains('de\\\\s+\\.\\+')) {
+        // Chequear patrón 1: "Te yapeó S/ 10.00 Juan Perez"
+        if (cleanRaw.toLowerCase().startsWith("te yapeó")) {
+          currency = match.group(1)?.trim() ?? "S/";
+          final amountStr = match.group(2)?.replaceAll(',', '.').trim() ?? "0";
+          amount = double.tryParse(amountStr);
+          senderName = match.group(3)?.trim();
+        }
+        // Chequear patrones donde el nombre está al final ("de [Nombre]")
+        else if (regex.pattern.contains('de\\\\s+\\(.+\\)') || regex.pattern.contains('de\\\\s+\\.\\+')) {
            if (regex.pattern.contains('Plin')) {
-             // Scotiabank Plin: [Monto] de [Nombre]
              final amountStr = match.group(1)?.replaceAll(',', '.').trim() ?? "0";
              amount = double.tryParse(amountStr);
              senderName = match.group(2)?.trim();
            } else {
-             // Formato 5 de Yape
              currency = match.group(1)?.trim() ?? "S/";
              final amountStr = match.group(2)?.replaceAll(',', '.').trim() ?? "0";
              amount = double.tryParse(amountStr);
@@ -91,7 +99,6 @@ class PaymentParser {
       }
     }
 
-    // 2. Si no es un pago, verificar si es una notificación de seguridad pura
     if (senderName == null || amount == null || amount <= 0) {
       final lowerRaw = raw.toLowerCase();
       for (final word in _securityKeywords) {
@@ -105,16 +112,11 @@ class PaymentParser {
       return const Left(ServerFailure('Formato no reconocido'));
     }
 
-    // LIMPIEZA AGRESIVA DEL NOMBRE:
-    // 1. Quitar prefijos comunes de Yape y Plin
+    // Limpieza del nombre
     senderName = senderName
         .replaceAll(RegExp(r"^(?:Yape:?\s*|Plin:?\s*|¡?Te\s+yapearon!?\s*|¡?Recibiste\s+un\s+(?:Yape|Plin)!?\s*)", caseSensitive: false), "")
         .trim();
-    
-    // 2. QUITAR ASTERISCOS (*) - Esto evita que el TTS los lea
     senderName = senderName.replaceAll('*', '');
-    
-    // 3. Quitar puntos suspensivos o caracteres raros al final
     senderName = senderName.replaceAll(RegExp(r'[.|*#\-_]+$'), '').trim();
 
     AppLogger.i('PARSER SUCCESS: $senderName | $amount');

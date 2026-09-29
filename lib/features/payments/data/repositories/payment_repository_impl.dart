@@ -83,11 +83,16 @@ class PaymentRepositoryImpl implements PaymentRepository {
         _rawNotificationController.add("App: $pkg\nTítulo: $title\nCuerpo: $body${scraped != null ? '\nScraped: $scraped' : ''}");
 
         String contentToParse = payload['rawBody'] as String? ?? scraped ?? body;
-        if (contentToParse.isEmpty) return;
 
         var result = PaymentParser.parse(contentToParse);
         if (result.isLeft() && title.isNotEmpty) {
           result = PaymentParser.parse(title);
+        }
+        if (result.isLeft() && title.isNotEmpty && body.isNotEmpty) {
+          result = PaymentParser.parse("$title $body");
+        }
+        if (result.isLeft() && title.isNotEmpty && body.isNotEmpty) {
+          result = PaymentParser.parse("$title - $body");
         }
 
         result.fold(
