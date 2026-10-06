@@ -64,8 +64,19 @@ class PaymentRepositoryImpl implements PaymentRepository {
 
   void _initNotificationListener() {
     AppLogger.i('PaymentRepository: Iniciando escucha de notificaciones...');
+    
+    // 1. Cargar pagos capturados en segundo plano mientras Flutter estuvo cerrado
+    _checkPendingBackgroundPayments();
+
+    // 2. Escuchar transmisiones en vivo
     notificationService.notificationStream.listen(
       (payload) async {
+        // Al reconectar el stream, revisar si hay pagos en segundo plano capturados
+        if (payload['status'] == 'connected') {
+          await _checkPendingBackgroundPayments();
+          return;
+        }
+
         final isDetectionEnabled = prefs.getBool('detection_enabled') ?? true;
         if (!isDetectionEnabled) return;
 
@@ -115,6 +126,37 @@ class PaymentRepositoryImpl implements PaymentRepository {
         AppLogger.e('PaymentRepository: Error en el stream de notificaciones', error);
       },
     );
+  }
+
+  Future<void> _checkPendingBackgroundPayments() async {
+    try {
+      final pendingList = await notificationService.checkPendingBackgroundPayments();
+      if (pendingList.isEmpty) return;
+
+      AppLogger.i('PaymentRepository: Procesando ${pendingList.length} pagos capturados en segundo plano...');
+      for (final item in pendingList) {
+        final senderName = item['senderName']?.toString() ?? 'Cliente';
+        final amount = (item['amount'] as num?)?.toDouble() ?? 0.0;
+        final rawText = item['rawText']?.toString() ?? '';
+        final parsedAtMillis = item['parsedAt'] as int?;
+
+        if (amount > 0) {
+          final paymentData = PaymentData(
+            senderName: senderName,
+            amount: amount,
+            currency: 'S/',
+            rawText: rawText,
+            parsedAt: parsedAtMillis != null ? DateTime.fromMillisecondsSinceEpoch(parsedAtMillis) : DateTime.now(),
+          );
+
+          await savePayment(paymentData);
+          _paymentController.add(paymentData);
+          AppLogger.i('PaymentRepository: Pago nativo capturado en segundo plano registrado: $senderName | $amount');
+        }
+      }
+    } catch (e) {
+      AppLogger.e('PaymentRepository: Error procesando pagos en segundo plano', e);
+    }
   }
 
   Future<void> _notifySecondaryNumbers(PaymentData payment) async {

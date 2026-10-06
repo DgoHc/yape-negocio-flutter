@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/utils/app_logger.dart';
@@ -56,6 +57,27 @@ class NotificationPlatformService {
     } on PlatformException catch (e) {
       AppLogger.e('Error opening notification settings', e);
     }
+  }
+
+  Future<void> openBatteryOptimizationSettings() async {
+    try {
+      await _methodChannel.invokeMethod('openBatteryOptimizationSettings');
+    } on PlatformException catch (e) {
+      AppLogger.e('Error opening battery optimization settings', e);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> checkPendingBackgroundPayments() async {
+    try {
+      final String? pendingJson = await _methodChannel.invokeMethod<String>('getPendingBackgroundPayments');
+      if (pendingJson != null && pendingJson.isNotEmpty && pendingJson != '[]') {
+        final List<dynamic> jsonList = jsonDecode(pendingJson);
+        return jsonList.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+    } catch (e) {
+      AppLogger.e('Error checking pending background payments', e);
+    }
+    return [];
   }
 
   Future<bool> isAccessibilityServiceEnabled() async {
