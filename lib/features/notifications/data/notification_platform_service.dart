@@ -22,18 +22,35 @@ class NotificationPlatformService {
 
   Stream<Map<String, dynamic>> get notificationStream => _notificationStream;
 
-  void _listenToEventChannel() {
+  void _listenToEventChannel({int retryCount = 0}) {
     AppLogger.i('NotificationPlatformService: Escuchando EventChannel...');
-    _eventChannelSubscription = _eventChannel.receiveBroadcastStream().listen(
-      (event) {
-        AppLogger.d('NotificationPlatformService: Evento recibido: $event');
-        _streamController.add(Map<String, dynamic>.from(event));
-      },
-      onError: (error) {
-        AppLogger.e('Error from EventChannel', error);
-        _streamController.addError(error);
-      },
-    );
+    _eventChannelSubscription?.cancel();
+    try {
+      _eventChannelSubscription = _eventChannel.receiveBroadcastStream().listen(
+        (event) {
+          AppLogger.d('NotificationPlatformService: Evento recibido: $event');
+          _streamController.add(Map<String, dynamic>.from(event));
+        },
+        onError: (error) {
+          AppLogger.e('Error from EventChannel', error);
+          if (error is MissingPluginException && retryCount < 5) {
+            AppLogger.w('MissingPluginException en EventChannel. Reintentando en ${retryCount + 1}s...');
+            Future.delayed(Duration(seconds: retryCount + 1), () {
+              _listenToEventChannel(retryCount: retryCount + 1);
+            });
+          } else {
+            _streamController.addError(error);
+          }
+        },
+      );
+    } catch (e) {
+      AppLogger.e('Exception listening to EventChannel', e);
+      if (retryCount < 5) {
+        Future.delayed(Duration(seconds: retryCount + 1), () {
+          _listenToEventChannel(retryCount: retryCount + 1);
+        });
+      }
+    }
   }
 
   void dispose() {
