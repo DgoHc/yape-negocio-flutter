@@ -64,6 +64,7 @@ class MainActivity : FlutterActivity() {
 
     private fun toggleNotificationListenerService() {
         try {
+            BootReceiver.rebindService(this)
             val intent = Intent(this, YapeNotificationListenerService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)

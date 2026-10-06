@@ -72,6 +72,14 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         }
     }
 
+    override fun onListenerDisconnected() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            super.onListenerDisconnected()
+        }
+        Log.d("SonoPayService", "NotificationListener disconnected! Forcing rebind...")
+        BootReceiver.rebindService(this)
+    }
+
     private fun startForegroundService() {
         val channelName = "SonoPay Background Service"
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

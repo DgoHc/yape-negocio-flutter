@@ -135,8 +135,8 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
     await Future.delayed(Duration.zero);
     emit(state.copyWith(status: PaymentsStatus.loading));
     
-    // Ejecutar limpieza antes de cargar
-    final days = _prefs.getInt('history_retention_days') ?? 30;
+    // Conservar historial indefinidamente por defecto (history_retention_days = 0)
+    final days = _prefs.getInt('history_retention_days') ?? 0;
     if (days > 0) {
       await _paymentRepository.clearOldPayments(days);
     }

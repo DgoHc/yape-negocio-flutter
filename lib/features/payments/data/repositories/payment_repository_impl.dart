@@ -71,7 +71,6 @@ class PaymentRepositoryImpl implements PaymentRepository {
     // 2. Escuchar transmisiones en vivo
     notificationService.notificationStream.listen(
       (payload) async {
-        // Al reconectar el stream, revisar si hay pagos en segundo plano capturados
         if (payload['status'] == 'connected') {
           await _checkPendingBackgroundPayments();
           return;
@@ -188,8 +187,37 @@ class PaymentRepositoryImpl implements PaymentRepository {
   @override
   Future<Either<Failure, List<PaymentData>>> getPayments() async {
     try {
+      // 1. Obtener pagos locales de SQLite (Drift)
       final modelPayments = await localDataSource.getAllPayments();
-      final domainPayments = modelPayments.map((m) => PaymentMapper.fromModel(m)).toList();
+      var domainPayments = modelPayments.map((m) => PaymentMapper.fromModel(m)).toList();
+
+      // 2. Si hay conexión a internet, sincronizar pagos desde el servidor backend (nube)
+      if (connectivityBloc.state.status == ConnectivityStatus.connected) {
+        try {
+          final remoteResult = await remoteDataSource.getPayments();
+          await remoteResult.fold(
+            (_) async {},
+            (remoteDtos) async {
+              for (final dto in remoteDtos) {
+                final model = PaymentMapper.toModel(
+                  PaymentMapper.fromDto(dto),
+                  dto.externalId,
+                  true,
+                );
+                await localDataSource.savePayment(model);
+              }
+            },
+          );
+          final updatedModels = await localDataSource.getAllPayments();
+          domainPayments = updatedModels.map((m) => PaymentMapper.fromModel(m)).toList();
+        } catch (e) {
+          AppLogger.w('PaymentRepository: No se pudo sincronizar pagos remotos: $e');
+        }
+      }
+
+      // Ordenar los pagos por fecha descendente
+      domainPayments.sort((a, b) => b.parsedAt.compareTo(a.parsedAt));
+
       return Right(domainPayments);
     } catch (e) {
       return Left(DatabaseFailure(e.toString()));

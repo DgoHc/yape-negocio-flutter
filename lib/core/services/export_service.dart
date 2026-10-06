@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
@@ -17,31 +16,49 @@ class ExportService {
     var paymentsToExport = payments;
     
     if (startDate != null && endDate != null) {
+      final start = DateTime(startDate.year, startDate.month, startDate.day, 0, 0, 0);
+      final end = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
       paymentsToExport = payments.where((p) {
-        return p.parsedAt.isAfter(startDate.subtract(const Duration(days: 1))) &&
-               p.parsedAt.isBefore(endDate.add(const Duration(days: 1)));
+        return p.parsedAt.isAfter(start.subtract(const Duration(seconds: 1))) &&
+               p.parsedAt.isBefore(end.add(const Duration(seconds: 1)));
       }).toList();
     }
 
     final excel = Excel.createExcel();
-    final sheet = excel['Pagos'];
+    final sheet = excel['Historial de Pagos'];
 
     // Headers
-    sheet.cell(CellIndex.indexByString('A1')).value = TextCellValue('Fecha');
-    sheet.cell(CellIndex.indexByString('B1')).value = TextCellValue('Remitente');
-    sheet.cell(CellIndex.indexByString('C1')).value = TextCellValue('Monto');
-    sheet.cell(CellIndex.indexByString('D1')).value = TextCellValue('Moneda');
+    sheet.cell(CellIndex.indexByString('A1')).value = TextCellValue('N°');
+    sheet.cell(CellIndex.indexByString('B1')).value = TextCellValue('Fecha y Hora');
+    sheet.cell(CellIndex.indexByString('C1')).value = TextCellValue('Remitente / Pagador');
+    sheet.cell(CellIndex.indexByString('D1')).value = TextCellValue('Monto');
+    sheet.cell(CellIndex.indexByString('E1')).value = TextCellValue('Moneda');
+    sheet.cell(CellIndex.indexByString('F1')).value = TextCellValue('N° Operación');
+    sheet.cell(CellIndex.indexByString('G1')).value = TextCellValue('Texto Notificación');
+
+    double totalAmount = 0.0;
 
     // Rows
     for (int i = 0; i < paymentsToExport.length; i++) {
       final p = paymentsToExport[i];
-      sheet.cell(CellIndex.indexByString('A${i+2}')).value = TextCellValue('${p.parsedAt.day}/${p.parsedAt.month}/${p.parsedAt.year} ${p.parsedAt.hour}:${p.parsedAt.minute}');
-      sheet.cell(CellIndex.indexByString('B${i+2}')).value = TextCellValue(p.senderName);
-      sheet.cell(CellIndex.indexByString('C${i+2}')).value = TextCellValue(p.amount.toStringAsFixed(2));
-      sheet.cell(CellIndex.indexByString('D${i+2}')).value = TextCellValue(p.currency);
+      totalAmount += p.amount;
+      final dateStr = '${p.parsedAt.day.toString().padLeft(2, '0')}/${p.parsedAt.month.toString().padLeft(2, '0')}/${p.parsedAt.year} ${p.parsedAt.hour.toString().padLeft(2, '0')}:${p.parsedAt.minute.toString().padLeft(2, '0')}';
+
+      sheet.cell(CellIndex.indexByString('A${i + 2}')).value = TextCellValue('${i + 1}');
+      sheet.cell(CellIndex.indexByString('B${i + 2}')).value = TextCellValue(dateStr);
+      sheet.cell(CellIndex.indexByString('C${i + 2}')).value = TextCellValue(p.senderName);
+      sheet.cell(CellIndex.indexByString('D${i + 2}')).value = TextCellValue(p.amount.toStringAsFixed(2));
+      sheet.cell(CellIndex.indexByString('E${i + 2}')).value = TextCellValue(p.currency);
+      sheet.cell(CellIndex.indexByString('F${i + 2}')).value = TextCellValue(p.operationNumber ?? '-');
+      sheet.cell(CellIndex.indexByString('G${i + 2}')).value = TextCellValue(p.rawText);
     }
 
-    await _saveAndOpenExcel(excel, 'pagos');
+    // Row de Total
+    final totalRowIndex = paymentsToExport.length + 3;
+    sheet.cell(CellIndex.indexByString('B$totalRowIndex')).value = TextCellValue('TOTAL GENERAL:');
+    sheet.cell(CellIndex.indexByString('D$totalRowIndex')).value = TextCellValue('S/ ${totalAmount.toStringAsFixed(2)}');
+
+    await _saveAndOpenExcel(excel, 'reporte_pagos_sonopay');
   }
 
   Future<void> exportAdminDataToExcel({
