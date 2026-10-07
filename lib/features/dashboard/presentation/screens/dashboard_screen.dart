@@ -73,6 +73,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             listener: (context, state) {
               if (state.status == AuthStatus.unauthenticated) {
                 context.go('/login');
+              } else if (state.status == AuthStatus.authenticatedDriver || state.status == AuthStatus.authenticatedAdmin) {
+                context.read<PaymentsBloc>().add(LoadPayments());
               }
             },
           ),
