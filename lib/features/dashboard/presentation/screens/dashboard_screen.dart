@@ -9,36 +9,6 @@ import '../../../payments/presentation/bloc/payments_bloc.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
 import '../../../notifications/data/notification_platform_service.dart';
 
-// --- DESIGN TOKENS Y COLORES OFICIALES DEL DASHBOARD MÁS MODERNO ---
-class DashboardDesignTokens {
-  static const Color bgGradientTop = Color(0xFFFBFBFE);    // Blanco Nieve casi puro
-  static const Color bgGradientMid = Color(0xFFF3F1FD);    // Violeta Pastel Místico
-  static const Color bgGradientBottom = Color(0xFFFFF7E6); // Calidez Amarilla Suave
-
-  static const Color cYellowMain = Color(0xFFFFD500);       // Amarillo Yape/Brillante
-  static const Color cDarkBrownMain = Color(0xFF2C2420);    // Marrón Oscuro/Casi Negro
-  static const Color cDarkBrownSecondary = Color(0xFF5A4E48); // Marrón Neutro
-  static const Color cGreyText = Color(0xFF8C827A);          // Gris Suave
-  static const Color cGreenMain = Color(0xFF00E676);        // Verde Neón para Notificaciones
-  static const Color cGreenDarkText = Color(0xFF00893E);    // Verde Oscuro para montos
-  static const Color cRedMain = Color(0xFFFF3B30);          // Rojo Alerta
-
-  static final List<BoxShadow> softGlassShadow = [
-    BoxShadow(
-      color: const Color(0xFF2C2420).withValues(alpha: 0.05),
-      blurRadius: 24,
-      spreadRadius: 0,
-      offset: const Offset(0, 10),
-    ),
-    BoxShadow(
-      color: Colors.white.withValues(alpha: 0.7),
-      blurRadius: 12,
-      spreadRadius: -4,
-      offset: const Offset(0, -4),
-    ),
-  ];
-}
-
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -67,6 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFC),
       body: MultiBlocListener(
         listeners: [
           BlocListener<AuthBloc, AuthState>(
@@ -91,98 +62,99 @@ class _DashboardScreenState extends State<DashboardScreen> {
             },
           ),
         ],
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                DashboardDesignTokens.bgGradientTop,
-                DashboardDesignTokens.bgGradientMid,
-                DashboardDesignTokens.bgGradientBottom,
-              ],
-              stops: [0.0, 0.5, 1.0],
-            ),
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: Stack(
-              children: [
-                // CONTENIDO SCROLLABLE PRINCIPAL
-                RefreshIndicator(
-                  onRefresh: () async {
-                    context.read<PaymentsBloc>().add(LoadPayments());
-                    context.read<SettingsBloc>().add(LoadControlSettings());
-                  },
-                  color: DashboardDesignTokens.cDarkBrownMain,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
-                    child: BlocBuilder<SettingsBloc, SettingsState>(
-                      builder: (context, settingsState) {
-                        return BlocBuilder<PaymentsBloc, PaymentsState>(
-                          builder: (context, paymentsState) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 1. CABECERA EN VIDRIO
-                                _GlassHeader(
-                                  onExport: () {
-                                    context.read<PaymentsBloc>().add(ExportPayments());
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Generando reporte Excel...')),
-                                    );
-                                  },
-                                  onSettings: () => context.push('/settings'),
-                                  onLogout: () => context.read<AuthBloc>().add(const LogoutRequested()),
+        child: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              RefreshIndicator(
+                onRefresh: () async {
+                  context.read<PaymentsBloc>().add(LoadPayments());
+                  context.read<SettingsBloc>().add(LoadControlSettings());
+                },
+                color: const Color(0xFF2C2200),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.only(bottom: 120),
+                  child: BlocBuilder<SettingsBloc, SettingsState>(
+                    builder: (context, settingsState) {
+                      return BlocBuilder<PaymentsBloc, PaymentsState>(
+                        builder: (context, paymentsState) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // --- 1. BLOQUE SUPERIOR AMARILLO ---
+                              Container(
+                                width: double.infinity,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFFCD19), // Amarillo Yape Cálido
+                                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
                                 ),
+                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                                child: Column(
+                                  children: [
+                                    // CABECERA SUPERIOR
+                                    _HeaderCard(
+                                      onExport: () {
+                                        context.read<PaymentsBloc>().add(ExportPayments());
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Generando reporte Excel...')),
+                                        );
+                                      },
+                                      onSettings: () => context.push('/settings'),
+                                      onLogout: () => context.read<AuthBloc>().add(const LogoutRequested()),
+                                    ),
 
-                                const SizedBox(height: 12),
+                                    const SizedBox(height: 12),
 
-                                // 2. PASTILLA DE NOTIFICACIONES ACTIVAS / INACTIVAS
-                                _StatusPill(
-                                  isDetectionActive: settingsState.isDetectionEnabled,
+                                    // PASTILLA 1: NOTIFICACIONES ACTIVAS
+                                    _StatusPill(
+                                      isDetectionActive: settingsState.isDetectionEnabled,
+                                    ),
+
+                                    const SizedBox(height: 8),
+
+                                    // PASTILLA 2: PRUEBA GRATUITA
+                                    BlocBuilder<AuthBloc, AuthState>(
+                                      builder: (context, authState) {
+                                        final profile = authState.userProfile;
+                                        if (profile != null && !profile.isSubscribed) {
+                                          return _TrialPill(
+                                            daysLeft: profile.daysLeft,
+                                          );
+                                        }
+                                        return const SizedBox.shrink();
+                                      },
+                                    ),
+                                  ],
                                 ),
+                              ),
 
-                                const SizedBox(height: 8),
+                              const SizedBox(height: 16),
 
-                                // 3. PASTILLA DE PRUEBA GRATUITA
-                                BlocBuilder<AuthBloc, AuthState>(
-                                  builder: (context, authState) {
-                                    final profile = authState.userProfile;
-                                    if (profile != null && !profile.isSubscribed) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(bottom: 12.0),
-                                        child: _TrialPill(
-                                          daysLeft: profile.daysLeft,
-                                        ),
-                                      );
-                                    }
-                                    return const SizedBox.shrink();
-                                  },
-                                ),
-
-                                const SizedBox(height: 6),
-
-                                // 4. TARJETA DE BALANCE EN VIDRIO AMARILLO
-                                _BalanceCard(
+                              // --- 2. TARJETA DE BALANCE CENTRADA ---
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                child: _BalanceCard(
                                   dailyTotal: paymentsState.dailyTotal,
                                 ),
+                              ),
 
-                                const SizedBox(height: 28),
+                              const SizedBox(height: 28),
 
-                                // 5. ENCABEZADO DE SECCIÓN
-                                Row(
+                              // --- 3. ENCABEZADO DE PAGOS RECIENTES ---
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                                child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
                                       'Pagos recientes',
                                       style: TextStyle(
                                         fontSize: 20,
-                                        fontWeight: FontWeight.w800,
-                                        color: DashboardDesignTokens.cDarkBrownMain,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF2C2200),
                                         fontFamily: 'Plus Jakarta Sans',
                                       ),
                                     ),
@@ -196,49 +168,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       child: const Text(
                                         'Ver todos',
                                         style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: DashboardDesignTokens.cDarkBrownSecondary,
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF7A6800),
                                           fontFamily: 'Plus Jakarta Sans',
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
+                              ),
 
-                                const SizedBox(height: 12),
+                              const SizedBox(height: 12),
 
-                                // 6. LISTA DE PAGOS O ESTADO VACÍO
-                                if (paymentsState.payments.isEmpty)
-                                  const _EmptyPaymentsGlassCard()
-                                else
-                                  Column(
-                                    children: paymentsState.payments
-                                        .take(8)
-                                        .map((payment) => Padding(
-                                              padding: const EdgeInsets.only(bottom: 10.0),
-                                              child: _PaymentRowItem(payment: payment),
-                                            ))
-                                        .toList(),
-                                  ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                    ),
+                              // --- 4. LISTA DE PAGOS ---
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                child: paymentsState.payments.isEmpty
+                                    ? const _EmptyPaymentsCard()
+                                    : Column(
+                                        children: paymentsState.payments
+                                            .take(8)
+                                            .map((payment) => Padding(
+                                                  padding: const EdgeInsets.only(bottom: 10.0),
+                                                  child: _PaymentItemRow(payment: payment),
+                                                ))
+                                            .toList(),
+                                      ),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
+              ),
 
-                // DOCK INFERIOR FLOTANTE CON EFECTO DE VIDRIO
-                const Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: _FloatingBottomDock(),
-                ),
-              ],
-            ),
+              // DOCK INFERIOR FLOTANTE
+              const Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: _FloatingBottomDock(),
+              ),
+            ],
           ),
         ),
       ),
@@ -246,48 +220,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// --- CONTENEDOR DE VIDRIO GLASSMORPHISM DE ALTA FIDELIDAD ---
-class _GlassContainer extends StatelessWidget {
-  final Widget child;
-  final double borderRadius;
-  final Color backgroundColor;
-  final EdgeInsetsGeometry padding;
-
-  const _GlassContainer({
-    required this.child,
-    this.borderRadius = 26,
-    this.backgroundColor = const Color(0x61FFFFFF), // Blanco 38%
-    this.padding = const EdgeInsets.all(16),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.65), width: 1.2),
-            boxShadow: DashboardDesignTokens.softGlassShadow,
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-// --- CABECERA DE VIDRIO ---
-class _GlassHeader extends StatelessWidget {
+// --- CABECERA DE LA TARJETA EN CREMA ---
+class _HeaderCard extends StatelessWidget {
   final VoidCallback onExport;
   final VoidCallback onSettings;
   final VoidCallback onLogout;
 
-  const _GlassHeader({
+  const _HeaderCard({
     required this.onExport,
     required this.onSettings,
     required this.onLogout,
@@ -295,25 +234,35 @@ class _GlassHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassContainer(
-      borderRadius: 24,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8D6), // Crema suave
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: 42,
+            height: 42,
             decoration: const BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.notifications_active_rounded,
-              color: DashboardDesignTokens.cYellowMain,
-              size: 20,
+              color: Color(0xFFFFC800),
+              size: 22,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
 
           const Expanded(
             child: Text(
@@ -321,18 +270,18 @@ class _GlassHeader extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 16.5,
-                fontWeight: FontWeight.w800,
-                color: DashboardDesignTokens.cDarkBrownMain,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF2C2200),
                 fontFamily: 'Plus Jakarta Sans',
               ),
             ),
           ),
 
           _HeaderIconButton(icon: Icons.download_rounded, onTap: onExport),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           _HeaderIconButton(icon: Icons.settings_rounded, onTap: onSettings),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           _HeaderIconButton(icon: Icons.logout_rounded, onTap: onLogout),
         ],
       ),
@@ -350,16 +299,15 @@ class _HeaderIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
-          color: const Color(0x59FFFFFF),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.0),
+          color: const Color(0xFFFFF0B3),
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Icon(icon, color: DashboardDesignTokens.cDarkBrownMain, size: 18),
+        child: Icon(icon, color: const Color(0xFF2C2200), size: 20),
       ),
     );
   }
@@ -373,25 +321,28 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassContainer(
-      borderRadius: 100,
-      backgroundColor: const Color(0x9EFFFFFF),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: isDetectionActive ? const Color(0xFFCCD642) : const Color(0xFFFF8A80),
+        borderRadius: BorderRadius.circular(100),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
           _PulsingDot(
-            color: isDetectionActive ? DashboardDesignTokens.cGreenMain : DashboardDesignTokens.cRedMain,
+            color: isDetectionActive ? const Color(0xFF00E676) : Colors.white,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              isDetectionActive ? 'Notificaciones de Yape y Plin activas' : 'Detección pausada',
+              isDetectionActive ? 'Notificaciones activas' : 'Detección pausada',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isDetectionActive ? DashboardDesignTokens.cDarkBrownMain : DashboardDesignTokens.cRedMain,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: isDetectionActive ? const Color(0xFF2E4D00) : Colors.white,
                 fontFamily: 'Plus Jakarta Sans',
               ),
             ),
@@ -482,30 +433,49 @@ class _TrialPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassContainer(
-      borderRadius: 100,
-      backgroundColor: const Color(0x9EFFFFFF),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8D6),
+        borderRadius: BorderRadius.circular(100),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       child: Row(
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: DashboardDesignTokens.cYellowMain,
-              shape: BoxShape.circle,
-            ),
+          const Icon(
+            Icons.stars_rounded,
+            color: Color(0xFFFFC800),
+            size: 20,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Prueba gratuita: $daysLeft días restantes',
+              'Prueba gratuita: $daysLeft días resta...',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF2C2200),
+                fontFamily: 'Plus Jakarta Sans',
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          ElevatedButton(
+            onPressed: () => context.push('/subscription'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFCD19),
+              foregroundColor: const Color(0xFF2C2200),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+            ),
+            child: const Text(
+              'Mejorar plan',
+              style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: DashboardDesignTokens.cDarkBrownSecondary,
+                fontWeight: FontWeight.w900,
                 fontFamily: 'Plus Jakarta Sans',
               ),
             ),
@@ -516,7 +486,7 @@ class _TrialPill extends StatelessWidget {
   }
 }
 
-// --- TARJETA DE BALANCE EN VIDRIO AMARILLO ---
+// --- TARJETA DE BALANCE ---
 class _BalanceCard extends StatelessWidget {
   final double dailyTotal;
 
@@ -524,181 +494,198 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassContainer(
-      borderRadius: 30,
-      backgroundColor: const Color(0xB2FFF5AA),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Text(
-              'BALANCE DE HOY',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-                color: DashboardDesignTokens.cDarkBrownSecondary,
-                fontFamily: 'Plus Jakarta Sans',
-              ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF0B8), // Crema cálida del balance
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text(
+            'BALANCE DE HOY',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              color: Color(0xFF7A6800),
+              fontFamily: 'Plus Jakarta Sans',
             ),
-            const SizedBox(height: 10),
+          ),
+          const SizedBox(height: 10),
 
-            Center(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    style: const TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                    children: [
-                      const TextSpan(
-                        text: 'S/ ',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w700,
-                          color: DashboardDesignTokens.cDarkBrownSecondary,
-                        ),
-                      ),
-                      TextSpan(
-                        text: dailyTotal.toStringAsFixed(2),
-                        style: const TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1.5,
-                          color: DashboardDesignTokens.cDarkBrownMain,
-                        ),
-                      ),
-                    ],
+          Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: RichText(
+                textAlign: TextAlign.center,
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontFeatures: [FontFeature.tabularFigures()],
                   ),
+                  children: [
+                    const TextSpan(
+                      text: 'S/ ',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF7A6800),
+                      ),
+                    ),
+                    TextSpan(
+                      text: dailyTotal.toStringAsFixed(2),
+                      style: const TextStyle(
+                        fontSize: 52,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1.5,
+                        color: Color(0xFF1F1700),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
+          ),
 
-            const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0x80FFFFFF),
-                borderRadius: BorderRadius.circular(100),
-                border: Border.all(color: Colors.white, width: 1.0),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _PulsingDot(color: DashboardDesignTokens.cGreenMain),
-                  SizedBox(width: 8),
-                  Text(
-                    'Ingresos en tiempo real',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: DashboardDesignTokens.cGreenDarkText,
-                      fontFamily: 'Plus Jakarta Sans',
-                    ),
-                  ),
-                ],
-              ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(100),
             ),
-          ],
-        ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _PulsingDot(color: Color(0xFF00E676)),
+                SizedBox(width: 8),
+                Text(
+                  'Ingresos en tiempo real',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E6B20),
+                    fontFamily: 'Plus Jakarta Sans',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// --- ESTADO VACÍO EN TARJETA DE VIDRIO ---
-class _EmptyPaymentsGlassCard extends StatelessWidget {
-  const _EmptyPaymentsGlassCard();
+// --- ESTADO VACÍO DE TARJETA ---
+class _EmptyPaymentsCard extends StatelessWidget {
+  const _EmptyPaymentsCard();
 
   @override
   Widget build(BuildContext context) {
-    return _GlassContainer(
-      borderRadius: 24,
-      backgroundColor: const Color(0x80FFFFFF),
-      padding: const EdgeInsets.all(24),
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.notifications_none_rounded,
-              size: 26,
-              color: DashboardDesignTokens.cDarkBrownSecondary,
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      padding: const EdgeInsets.all(28),
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.notifications_none_rounded,
+            size: 28,
+            color: Color(0xFF7A6800),
+          ),
+          SizedBox(height: 10),
+          Text(
+            'Aún no hay pagos hoy',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF2C2200),
+              fontFamily: 'Plus Jakarta Sans',
             ),
-            SizedBox(height: 8),
-            Text(
-              'Aún no hay pagos hoy',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: DashboardDesignTokens.cDarkBrownMain,
-                fontFamily: 'Plus Jakarta Sans',
-              ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Tus cobros aparecerán aquí.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF8C827A),
+              fontFamily: 'Plus Jakarta Sans',
             ),
-            SizedBox(height: 4),
-            Text(
-              'Tus cobros aparecerán aquí.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: DashboardDesignTokens.cGreyText,
-                fontFamily: 'Plus Jakarta Sans',
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// --- FILA DE PAGO EN VIDRIO OPTIMIZADA ---
-class _PaymentRowItem extends StatelessWidget {
+// --- FILA DE PAGO INDIVIDUAL ---
+class _PaymentItemRow extends StatelessWidget {
   final dynamic payment;
 
-  const _PaymentRowItem({required this.payment});
+  const _PaymentItemRow({required this.payment});
 
   @override
   Widget build(BuildContext context) {
     final initial = payment.senderName.isNotEmpty ? payment.senderName[0].toUpperCase() : '?';
     final timeStr = '${payment.parsedAt.hour.toString().padLeft(2, '0')}:${payment.parsedAt.minute.toString().padLeft(2, '0')}';
 
-    return _GlassContainer(
-      borderRadius: 20,
-      backgroundColor: const Color(0x8CFFFFFF),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: DashboardDesignTokens.cYellowMain,
-              borderRadius: BorderRadius.circular(13),
+              color: const Color(0xFFFFCD19),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Center(
               child: Text(
                 initial,
                 style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: DashboardDesignTokens.cDarkBrownMain,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF2C2200),
                   fontFamily: 'Plus Jakarta Sans',
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
 
           Expanded(
             child: Column(
@@ -709,9 +696,9 @@ class _PaymentRowItem extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: DashboardDesignTokens.cDarkBrownMain,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2C2200),
                     fontFamily: 'Plus Jakarta Sans',
                   ),
                 ),
@@ -719,8 +706,8 @@ class _PaymentRowItem extends StatelessWidget {
                 Text(
                   'Yape · $timeStr',
                   style: const TextStyle(
-                    fontSize: 11.5,
-                    color: DashboardDesignTokens.cGreyText,
+                    fontSize: 12,
+                    color: Color(0xFF8C827A),
                     fontFamily: 'Plus Jakarta Sans',
                   ),
                 ),
@@ -731,9 +718,9 @@ class _PaymentRowItem extends StatelessWidget {
           Text(
             '+ ${payment.currency} ${payment.amount.toStringAsFixed(2)}',
             style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: DashboardDesignTokens.cGreenDarkText,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF00893E),
               fontFamily: 'Plus Jakarta Sans',
               fontFeatures: [FontFeature.tabularFigures()],
             ),
@@ -744,67 +731,62 @@ class _PaymentRowItem extends StatelessWidget {
   }
 }
 
-// --- DOCK INFERIOR FLOTANTE EN VIDRIO ---
+// --- DOCK INFERIOR FLOTANTE CON BOTONES GRANDES REDONDEADOS ---
 class _FloatingBottomDock extends StatelessWidget {
   const _FloatingBottomDock();
 
   @override
   Widget build(BuildContext context) {
-    return _GlassContainer(
-      borderRadius: 26,
-      backgroundColor: const Color(0xB22C2420),
-      padding: const EdgeInsets.all(6),
-      child: BlocBuilder<SettingsBloc, SettingsState>(
-        builder: (context, settingsState) {
-          final isDetectionActive = settingsState.isDetectionEnabled;
-          final isMuted = settingsState.isMuted;
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, settingsState) {
+        final isDetectionActive = settingsState.isDetectionEnabled;
+        final isMuted = settingsState.isMuted;
 
-          return Row(
-            children: [
-              Expanded(
-                child: _DockButton(
-                  label: isMuted ? 'Audio Silenciado' : 'Audio Activado',
-                  icon: isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                  backgroundColor: isMuted ? AppTheme.errorColor : DashboardDesignTokens.cYellowMain,
-                  textColor: isMuted ? Colors.white : DashboardDesignTokens.cDarkBrownMain,
-                  onTap: () {
-                    context.read<SettingsBloc>().add(
-                          ToggleMute(!isMuted),
-                        );
-                  },
-                ),
+        return Row(
+          children: [
+            Expanded(
+              child: _DockPillButton(
+                label: isMuted ? 'Audio Silenciado' : 'Audio Activado',
+                icon: isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                backgroundColor: isMuted ? AppTheme.errorColor : const Color(0xFFFFC800),
+                textColor: isMuted ? Colors.white : const Color(0xFF2C2200),
+                onTap: () {
+                  context.read<SettingsBloc>().add(
+                        ToggleMute(!isMuted),
+                      );
+                },
               ),
-              const SizedBox(width: 6),
+            ),
+            const SizedBox(width: 12),
 
-              Expanded(
-                child: _DockButton(
-                  label: isDetectionActive ? 'Notificaciones' : 'Inactivo',
-                  icon: isDetectionActive ? Icons.notifications_active_rounded : Icons.notifications_off_rounded,
-                  backgroundColor: isDetectionActive ? DashboardDesignTokens.cGreenMain : AppTheme.errorColor,
-                  textColor: isDetectionActive ? DashboardDesignTokens.cDarkBrownMain : Colors.white,
-                  onTap: () {
-                    context.read<SettingsBloc>().add(
-                          ToggleDetection(!isDetectionActive),
-                        );
-                  },
-                ),
+            Expanded(
+              child: _DockPillButton(
+                label: isDetectionActive ? 'Notificaciones' : 'Inactivo',
+                icon: isDetectionActive ? Icons.notifications_active_rounded : Icons.notifications_off_rounded,
+                backgroundColor: isDetectionActive ? const Color(0xFF00E676) : AppTheme.errorColor,
+                textColor: isDetectionActive ? const Color(0xFF2C2200) : Colors.white,
+                onTap: () {
+                  context.read<SettingsBloc>().add(
+                        ToggleDetection(!isDetectionActive),
+                      );
+                },
               ),
-            ],
-          );
-        },
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _DockButton extends StatefulWidget {
+class _DockPillButton extends StatefulWidget {
   final String label;
   final IconData icon;
   final Color backgroundColor;
   final Color textColor;
   final VoidCallback onTap;
 
-  const _DockButton({
+  const _DockPillButton({
     required this.label,
     required this.icon,
     required this.backgroundColor,
@@ -813,10 +795,10 @@ class _DockButton extends StatefulWidget {
   });
 
   @override
-  State<_DockButton> createState() => _DockButtonState();
+  State<_DockPillButton> createState() => _DockPillButtonState();
 }
 
-class _DockButtonState extends State<_DockButton> {
+class _DockPillButtonState extends State<_DockPillButton> {
   bool _isPressed = false;
 
   @override
@@ -830,17 +812,24 @@ class _DockButtonState extends State<_DockButton> {
         scale: _isPressed ? 0.96 : 1.0,
         duration: const Duration(milliseconds: 100),
         child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: widget.backgroundColor,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(100), // Bordes 100% redondeados como la captura
+            boxShadow: [
+              BoxShadow(
+                color: widget.backgroundColor.withValues(alpha: 0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(widget.icon, size: 18, color: widget.textColor),
-              const SizedBox(width: 4),
+              Icon(widget.icon, size: 20, color: widget.textColor),
+              const SizedBox(width: 8),
               Flexible(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
@@ -848,8 +837,8 @@ class _DockButtonState extends State<_DockButton> {
                     widget.label,
                     maxLines: 1,
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
                       color: widget.textColor,
                       fontFamily: 'Plus Jakarta Sans',
                     ),

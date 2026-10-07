@@ -15,6 +15,39 @@ class PaymentHistoryScreen extends StatefulWidget {
 class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   DateTimeRange? _selectedDateRange;
 
+  void _showDeleteHistoryDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Borrar Historial', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('¿Estás seguro de que deseas eliminar todo tu historial local de pagos? Esta acción liberará espacio en tu teléfono.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: () {
+              context.read<PaymentsBloc>().add(ClearOldPayments());
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Historial local de pagos eliminado.')),
+              );
+            },
+            child: const Text('Eliminar Todo'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -60,6 +93,11 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
               tooltip: 'Limpiar Filtro',
               onPressed: () => setState(() => _selectedDateRange = null),
             ),
+          IconButton(
+            icon: const Icon(Icons.delete_sweep_rounded),
+            tooltip: 'Borrar Historial',
+            onPressed: () => _showDeleteHistoryDialog(context),
+          ),
         ],
       ),
       body: BlocBuilder<PaymentsBloc, PaymentsState>(
