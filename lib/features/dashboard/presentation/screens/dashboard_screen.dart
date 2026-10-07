@@ -37,7 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFC),
+      backgroundColor: const Color(0xFFF8F9FD),
       body: MultiBlocListener(
         listeners: [
           BlocListener<AuthBloc, AuthState>(
@@ -63,9 +63,117 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
         child: SafeArea(
-          bottom: true, // Protege la pantalla de los botones del sistema Android
+          top: true,
+          bottom: false,
           child: Stack(
             children: [
+              // --- CAPA 1: FONDO AMARILLO Y CÍRCULOS DECORATIVOS ESTÁTICOS ---
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Stack(
+                    children: [
+                      // Bloque Amarillo Superior Estático en el Fondo
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 230,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFFCD19), // Amarillo Yape
+                            borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0x1A000000),
+                                blurRadius: 16,
+                                offset: Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Círculo de brillo amarillo superior izquierdo
+                      Positioned(
+                        top: -50,
+                        left: -40,
+                        child: Container(
+                          width: 260,
+                          height: 260,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                const Color(0xFFFFE082).withValues(alpha: 0.5),
+                                const Color(0xFFFFE082).withValues(alpha: 0.0),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Círculo de brillo violeta suave superior derecho
+                      Positioned(
+                        top: 40,
+                        right: -50,
+                        child: Container(
+                          width: 220,
+                          height: 220,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                const Color(0xFFE1BEE7).withValues(alpha: 0.35),
+                                const Color(0xFFE1BEE7).withValues(alpha: 0.0),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Círculo dorado centro-izquierdo
+                      Positioned(
+                        top: 280,
+                        left: -60,
+                        child: Container(
+                          width: 260,
+                          height: 260,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                const Color(0xFFFFF0B8).withValues(alpha: 0.5),
+                                const Color(0xFFFFF0B8).withValues(alpha: 0.0),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Círculo verde brillante inferior derecho
+                      Positioned(
+                        bottom: 40,
+                        right: -40,
+                        child: Container(
+                          width: 220,
+                          height: 220,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                const Color(0xFFB9F6CA).withValues(alpha: 0.4),
+                                const Color(0xFFB9F6CA).withValues(alpha: 0.0),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // --- CAPA 2: CONTENIDO SCROLLABLE ---
               RefreshIndicator(
                 onRefresh: () async {
                   context.read<PaymentsBloc>().add(LoadPayments());
@@ -76,7 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
                   ),
-                  padding: const EdgeInsets.only(bottom: 110),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
                   child: BlocBuilder<SettingsBloc, SettingsState>(
                     builder: (context, settingsState) {
                       return BlocBuilder<PaymentsBloc, PaymentsState>(
@@ -84,143 +192,103 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // --- 1. BLOQUE SUPERIOR AMARILLO ---
-                              Container(
-                                width: double.infinity,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFFFCD19), // Amarillo Yape Cálido
-                                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Color(0x1A000000),
-                                      blurRadius: 16,
-                                      offset: Offset(0, 6),
-                                    ),
-                                  ],
-                                ),
-                                padding: const EdgeInsets.fromLTRB(16, 10, 16, 22),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _HeaderCard(
-                                      onExport: () {
-                                        context.read<PaymentsBloc>().add(ExportPayments());
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Generando reporte Excel...')),
-                                        );
-                                      },
-                                      onSettings: () => context.push('/settings'),
-                                      onLogout: () => context.read<AuthBloc>().add(const LogoutRequested()),
-                                    ),
-
-                                    const SizedBox(height: 12),
-
-                                    _StatusPill(
-                                      isDetectionActive: settingsState.isDetectionEnabled,
-                                    ),
-
-                                    const SizedBox(height: 8),
-
-                                    BlocBuilder<AuthBloc, AuthState>(
-                                      builder: (context, authState) {
-                                        final profile = authState.userProfile;
-                                        if (profile != null && !profile.isSubscribed) {
-                                          return _TrialPill(
-                                            daysLeft: profile.daysLeft,
-                                          );
-                                        }
-                                        return const SizedBox.shrink();
-                                      },
-                                    ),
-                                  ],
-                                ),
+                              // 1. TARJETA CABECERA SONOPAY
+                              _HeaderCard(
+                                onExport: () {
+                                  context.read<PaymentsBloc>().add(ExportPayments());
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Generando reporte Excel...')),
+                                  );
+                                },
+                                onSettings: () => context.push('/settings'),
+                                onLogout: () => context.read<AuthBloc>().add(const LogoutRequested()),
                               ),
 
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 10),
 
-                              // --- 2. TARJETA DE BALANCE ---
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                child: _BalanceCard(
-                                  dailyTotal: paymentsState.dailyTotal,
-                                ),
+                              // 2. PASTILLA DE ESTADO DE DETECCIÓN
+                              _StatusPill(
+                                isDetectionActive: settingsState.isDetectionEnabled,
                               ),
 
-                              const SizedBox(height: 28),
+                              const SizedBox(height: 8),
 
-                              // --- 3. PAGOS RECIENTES ---
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Pagos recientes',
+                              // 3. PASTILLA DE PRUEBA GRATUITA
+                              BlocBuilder<AuthBloc, AuthState>(
+                                builder: (context, authState) {
+                                  final profile = authState.userProfile;
+                                  if (profile != null && !profile.isSubscribed) {
+                                    return _TrialPill(
+                                      daysLeft: profile.daysLeft,
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                },
+                              ),
+
+                              const SizedBox(height: 18),
+
+                              // 4. TARJETA DE BALANCE DE HOY
+                              _BalanceCard(
+                                dailyTotal: paymentsState.dailyTotal,
+                              ),
+
+                              const SizedBox(height: 26),
+
+                              // 5. CABECERA DE PAGOS RECIENTES
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Pagos recientes',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF2C2200),
+                                      fontFamily: 'Plus Jakarta Sans',
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => context.push('/payment-history'),
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: const Text(
+                                      'Ver todos',
                                       style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xFF2C2200),
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF7A6800),
                                         fontFamily: 'Plus Jakarta Sans',
                                       ),
                                     ),
-                                    TextButton(
-                                      onPressed: () => context.push('/payment-history'),
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: Size.zero,
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: const Text(
-                                        'Ver todos',
-                                        style: TextStyle(
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: Color(0xFF7A6800),
-                                          fontFamily: 'Plus Jakarta Sans',
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
 
                               const SizedBox(height: 12),
 
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                child: paymentsState.status == PaymentsStatus.loading
-                                    ? const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 36.0),
-                                        child: Center(
-                                          child: Column(
-                                            children: [
-                                              YtLoader(),
-                                              SizedBox(height: 14),
-                                              Text(
-                                                'Cargando pagos en tiempo real...',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Color(0xFF7A6800),
-                                                  fontFamily: 'Plus Jakarta Sans',
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                              // 6. LISTA O INDICADOR DE CARGA DE PAGOS
+                              paymentsState.status == PaymentsStatus.loading
+                                  ? const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 36.0),
+                                      child: Center(
+                                        child: YtLoader(), // SOLO ANIMACIÓN DE CARGA BONITA
+                                      ),
+                                    )
+                                  : paymentsState.payments.isEmpty
+                                      ? const _EmptyPaymentsCard()
+                                      : Column(
+                                          children: paymentsState.payments
+                                              .take(8)
+                                              .map((payment) => Padding(
+                                                    padding: const EdgeInsets.only(bottom: 10.0),
+                                                    child: _PaymentItemRow(payment: payment),
+                                                  ))
+                                              .toList(),
                                         ),
-                                      )
-                                    : paymentsState.payments.isEmpty
-                                        ? const _EmptyPaymentsCard()
-                                        : Column(
-                                            children: paymentsState.payments
-                                                .take(8)
-                                                .map((payment) => Padding(
-                                                      padding: const EdgeInsets.only(bottom: 10.0),
-                                                      child: _PaymentItemRow(payment: payment),
-                                                    ))
-                                                .toList(),
-                                          ),
-                              ),
                             ],
                           );
                         },
@@ -230,12 +298,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
 
-              // DOCK INFERIOR FLOTANTE
-              const Positioned(
-                left: 16,
-                right: 16,
-                bottom: 12,
-                child: _FloatingBottomDock(),
+              // --- CAPA 3: DOCK INFERIOR FLOTANTE CON SAFEAREA PROTEGIDO ---
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  bottom: true,
+                  child: const Padding(
+                    padding: EdgeInsets.only(bottom: 10.0),
+                    child: _FloatingBottomDock(),
+                  ),
+                ),
               ),
             ],
           ),
@@ -756,7 +831,7 @@ class _PaymentItemRow extends StatelessWidget {
   }
 }
 
-// --- DOCK INFERIOR FLOTANTE CON BOTONES GRANDES REDONDEADOS ---
+// --- DOCK INFERIOR FLOTANTE CON BOTONES COMPACTOS DE CERO OVERFLOW ---
 class _FloatingBottomDock extends StatelessWidget {
   const _FloatingBottomDock();
 
@@ -771,7 +846,7 @@ class _FloatingBottomDock extends StatelessWidget {
           children: [
             Expanded(
               child: _DockPillButton(
-                label: isMuted ? 'Audio Silenciado' : 'Audio Activado',
+                label: isMuted ? 'Silenciado' : 'Audio Activado',
                 icon: isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
                 backgroundColor: isMuted ? AppTheme.errorColor : const Color(0xFFFFC800),
                 textColor: isMuted ? Colors.white : const Color(0xFF2C2200),
@@ -782,7 +857,7 @@ class _FloatingBottomDock extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
 
             Expanded(
               child: _DockPillButton(
@@ -837,15 +912,15 @@ class _DockPillButtonState extends State<_DockPillButton> {
         scale: _isPressed ? 0.96 : 1.0,
         duration: const Duration(milliseconds: 100),
         child: Container(
-          height: 52,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: widget.backgroundColor,
             borderRadius: BorderRadius.circular(100),
             boxShadow: [
               BoxShadow(
                 color: widget.backgroundColor.withValues(alpha: 0.3),
-                blurRadius: 12,
+                blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -853,20 +928,18 @@ class _DockPillButtonState extends State<_DockPillButton> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(widget.icon, size: 20, color: widget.textColor),
-              const SizedBox(width: 8),
+              Icon(widget.icon, size: 18, color: widget.textColor),
+              const SizedBox(width: 6),
               Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    widget.label,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: widget.textColor,
-                      fontFamily: 'Plus Jakarta Sans',
-                    ),
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: widget.textColor,
+                    fontFamily: 'Plus Jakarta Sans',
                   ),
                 ),
               ),

@@ -155,14 +155,16 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             } 
         }
 
-        // 2. Parsear el pago nativamente en Kotlin para TTS y Cola en Segundo Plano
+        // 2. Parsear el pago nativamente en Kotlin
         val parsed = parseNativePayment(title, rawBody)
         if (parsed != null) {
-            val senderName = parsed.first
+            val senderName = parsed.first.replace("*", "").replace("#", "").trim()
             val amount = parsed.second
 
-            // Hablar por voz nativa
-            speakNative("$senderName envió $amount soles")
+            // Hablar por voz nativa SOLO cuando Flutter no está abierto para no duplicar el audio
+            if (eventSink == null) {
+                speakNative("$senderName envió $amount soles")
+            }
 
             // Guardar en cola nativa de SharedPreferences
             savePendingPaymentToPrefs(senderName, amount, "$title $rawBody")
@@ -241,6 +243,8 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
                             .replace(Regex("(?i)^Yape!|\\bYape!\\b"), "")
                             .replace(Regex("^[¡!*#\\-_]+\\s*"), "")
                             .replace(Regex("[.|*#\\-_]+$"), "")
+                            .replace("*", "")
+                            .replace("#", "")
                             .trim()
                         if (name.isEmpty()) name = "Cliente Yape"
                         return Pair(name, amount)
