@@ -14,13 +14,11 @@ import android.content.Context
 import android.os.Build
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.speech.tts.TextToSpeech
-import java.util.Locale
 import java.util.regex.Pattern
 import org.json.JSONArray
 import org.json.JSONObject
 
-class YapeNotificationListenerService : NotificationListenerService(), TextToSpeech.OnInitListener {
+class YapeNotificationListenerService : NotificationListenerService() {
     companion object {
         const val EVENT_CHANNEL = "pe.yape.transporte/notifications"
         var eventSink: EventChannel.EventSink? = null
@@ -28,31 +26,6 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         private const val NOTIFICATION_ID = 888
         const val PREFS_NAME = "sonopay_native_prefs"
         const val KEY_PENDING_PAYMENTS = "pending_payments_json"
-    }
-
-    private var tts: TextToSpeech? = null
-    private var isTtsReady = false
-
-    override fun onCreate() {
-        super.onCreate()
-        try {
-            tts = TextToSpeech(applicationContext, this)
-        } catch (e: Exception) {
-            Log.e("SonoPayService", "Error initializing native TTS", e)
-        }
-    }
-
-    override fun onInit(status: Int) {
-        if (status == TextToSpeech.SUCCESS) {
-            val result = tts?.setLanguage(Locale("es", "PE"))
-            if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
-                isTtsReady = true
-                Log.d("SonoPayService", "Native TTS ready for es-PE")
-            } else {
-                tts?.setLanguage(Locale("es", "ES"))
-                isTtsReady = true
-            }
-        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -146,7 +119,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             "rawBody" to rawBody
         )
 
-        // 1. Intentar enviar a Flutter si está abierto en primer plano
+        // 1. Enviar a Flutter para que Flutter Dart procese el pago y hable por TTS una sola vez
         Handler(Looper.getMainLooper()).post { 
             try { 
                 eventSink?.success(data) 
@@ -155,34 +128,12 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             } 
         }
 
-        // 2. Parsear el pago nativamente en Kotlin
+        // 2. Guardar en cola nativa de SharedPreferences para sincronización de fondo
         val parsed = parseNativePayment(title, rawBody)
         if (parsed != null) {
             val senderName = parsed.first.replace("*", "").replace("#", "").trim()
             val amount = parsed.second
-
-            // Hablar por voz nativa SOLO cuando Flutter no está abierto para no duplicar el audio
-            if (eventSink == null) {
-                speakNative("$senderName envió $amount soles")
-            }
-
-            // Guardar en cola nativa de SharedPreferences
             savePendingPaymentToPrefs(senderName, amount, "$title $rawBody")
-        }
-    }
-
-    private fun speakNative(text: String) {
-        try {
-            if (isTtsReady && tts != null) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "sonopay_native_tts")
-                } else {
-                    @Suppress("DEPRECATION")
-                    tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("SonoPayService", "Error in speakNative", e)
         }
     }
 
@@ -241,10 +192,8 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
                             .replace(Regex("(?i)^(?:Confirmaci[óo]n(?:\\s+de)?(?:\\s+Pago)?(?:\\s+Yape!?)?|Yape:?|Plin:?|¡?Te\\s+yapearon!?|¡?Recibiste\\s+un\\s+(?:Yape|Plin)!?)\\s*"), "")
                             .replace(Regex("(?i)^Confirmaci[óo]n\\s+de\\s+(?:Pago\\s+)?(?:Yape!?)?\\s*"), "")
                             .replace(Regex("(?i)^Yape!|\\bYape!\\b"), "")
-                            .replace(Regex("^[¡!*#\\-_]+\\s*"), "")
-                            .replace(Regex("[.|*#\\-_]+$"), "")
-                            .replace("*", "")
-                            .replace("#", "")
+                            .replace(Regex("[*＊#_~^•·¡!]+"), " ")
+                            .replace(Regex("[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+$"), "")
                             .trim()
                         if (name.isEmpty()) name = "Cliente Yape"
                         return Pair(name, amount)
@@ -253,13 +202,5 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             }
         }
         return null
-    }
-
-    override fun onDestroy() {
-        try {
-            tts?.stop()
-            tts?.shutdown()
-        } catch (_: Exception) {}
-        super.onDestroy()
     }
 }

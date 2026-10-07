@@ -95,7 +95,7 @@ class PaymentParser {
       return const Left(ServerFailure('Formato no reconocido'));
     }
 
-    // LIMPIEZA AGRESIVA DEL NOMBRE DE REMITENTE Y ELIMINACIÓN DE ASTERISCOS
+    // LIMPIEZA AGRESIVA DEL NOMBRE DE REMITENTE Y ELIMINACIÓN DE ASTERISCOS/SÍMBOLOS
     senderName = _cleanSenderName(senderName);
 
     AppLogger.i('PARSER SUCCESS: $senderName | $amount');
@@ -112,8 +112,8 @@ class PaymentParser {
   static String _cleanSenderName(String name) {
     var cleaned = name;
 
-    // 1. Quitar asteriscos y numerales para evitar que TTS diga "asterisco"
-    cleaned = cleaned.replaceAll('*', '').replaceAll('#', '');
+    // 1. Quitar todos los asteriscos, numerales y símbolos especiales
+    cleaned = cleaned.replaceAll(RegExp(r'[*＊#_~^•·¡!]+'), ' ');
 
     // 2. Quitar prefijos comunes de Yape/Plin y frases de sistema
     cleaned = cleaned.replaceAll(
@@ -126,9 +126,12 @@ class PaymentParser {
         .replaceAll(RegExp(r"^Confirmaci[óo]n\s+de\s+(?:Pago\s+)?(?:Yape!?)?\s*", caseSensitive: false), "")
         .replaceAll(RegExp(r"^Yape!|\bYape!\b", caseSensitive: false), "");
 
-    // 4. Quitar caracteres especiales iniciales/finales
-    cleaned = cleaned.replaceAll(RegExp(r"^[¡!*#\-_]+\s*"), "");
-    cleaned = cleaned.replaceAll(RegExp(r"[.|*#\-_]+$"), "").trim();
+    // 4. Eliminar cualquier símbolo no alfanumérico sobrante al inicio o final (evita "asterisco" en TTS)
+    cleaned = cleaned.replaceAll(RegExp(r"^[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+"), "");
+    cleaned = cleaned.replaceAll(RegExp(r"[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+$"), "");
+
+    // 5. Colapsar espacios múltiples
+    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     return cleaned.isEmpty ? "Cliente Yape" : cleaned;
   }

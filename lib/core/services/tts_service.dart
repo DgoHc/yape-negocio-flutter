@@ -5,6 +5,8 @@ import '../utils/app_logger.dart';
 @lazySingleton
 class TtsService {
   final FlutterTts _flutterTts = FlutterTts();
+  String? _lastSpokenText;
+  DateTime? _lastSpokenTime;
 
   TtsService() {
     _init();
@@ -22,9 +24,22 @@ class TtsService {
   }
 
   Future<void> speak(String text, {bool isMuted = false}) async {
-    if (isMuted || text.isEmpty) return;
+    if (isMuted || text.trim().isEmpty) return;
+
+    final now = DateTime.now();
+    if (_lastSpokenText == text &&
+        _lastSpokenTime != null &&
+        now.difference(_lastSpokenTime!).inSeconds < 5) {
+      AppLogger.w('TTS: Ignorando llamada duplicada en menos de 5s: "$text"');
+      return;
+    }
+
+    _lastSpokenText = text;
+    _lastSpokenTime = now;
+
     try {
       AppLogger.i('TTS Starting to speak: $text');
+      await _flutterTts.stop();
       await _flutterTts.awaitSpeakCompletion(true);
       await _flutterTts.speak(text);
     } catch (e) {

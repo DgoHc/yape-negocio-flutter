@@ -112,8 +112,14 @@ class PaymentRepositoryImpl implements PaymentRepository {
             _paymentController.add(payment);
             
             final isMuted = prefs.getBool('is_muted') ?? false;
+            final cleanTtsName = payment.senderName
+                .replaceAll(RegExp(r'[*＊#_~^•·¡!]+'), ' ')
+                .replaceAll(RegExp(r"[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+$"), "")
+                .replaceAll(RegExp(r'\s+'), ' ')
+                .trim();
+
             ttsService.speak(
-              "${payment.senderName} envió ${payment.amount} soles",
+              "$cleanTtsName envió ${payment.amount} soles",
               isMuted: isMuted,
             );
 
