@@ -25,13 +25,13 @@ class DashboardDesignTokens {
 
   static final List<BoxShadow> softGlassShadow = [
     BoxShadow(
-      color: const Color(0xFF2C2420).withValues(alpha: 0.04),
+      color: const Color(0xFF2C2420).withValues(alpha: 0.05),
       blurRadius: 24,
       spreadRadius: 0,
       offset: const Offset(0, 10),
     ),
     BoxShadow(
-      color: Colors.white.withValues(alpha: 0.6),
+      color: Colors.white.withValues(alpha: 0.7),
       blurRadius: 12,
       spreadRadius: -4,
       offset: const Offset(0, -4),
@@ -119,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     physics: const AlwaysScrollableScrollPhysics(
                       parent: BouncingScrollPhysics(),
                     ),
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
                     child: BlocBuilder<SettingsBloc, SettingsState>(
                       builder: (context, settingsState) {
                         return BlocBuilder<PaymentsBloc, PaymentsState>(
@@ -127,7 +127,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // 1. CABECERA EN VIDRIO (LOGO + DOCK DE ACCIONES)
+                                // 1. CABECERA EN VIDRIO
                                 _GlassHeader(
                                   onExport: () {
                                     context.read<PaymentsBloc>().add(ExportPayments());
@@ -139,22 +139,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   onLogout: () => context.read<AuthBloc>().add(const LogoutRequested()),
                                 ),
 
-                                const SizedBox(height: 14),
+                                const SizedBox(height: 12),
 
-                                // 2. PASTILLA 1: NOTIFICACIONES ACTIVAS / INACTIVAS
+                                // 2. PASTILLA DE NOTIFICACIONES ACTIVAS / INACTIVAS
                                 _StatusPill(
                                   isDetectionActive: settingsState.isDetectionEnabled,
                                 ),
 
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 8),
 
-                                // 3. PASTILLA 2: DIAS RESTANTES DE PRUEBA GRATUITA
+                                // 3. PASTILLA DE PRUEBA GRATUITA
                                 BlocBuilder<AuthBloc, AuthState>(
                                   builder: (context, authState) {
                                     final profile = authState.userProfile;
                                     if (profile != null && !profile.isSubscribed) {
                                       return Padding(
-                                        padding: const EdgeInsets.only(bottom: 14.0),
+                                        padding: const EdgeInsets.only(bottom: 12.0),
                                         child: _TrialPill(
                                           daysLeft: profile.daysLeft,
                                         ),
@@ -164,16 +164,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   },
                                 ),
 
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
 
-                                // 4. TARJETA DE BALANCE EN VIDRIO AMARILLO LIGERO (PERFECTAMENTE CENTRADO)
-                                RepaintBoundary(
-                                  child: _BalanceCard(
-                                    dailyTotal: paymentsState.dailyTotal,
-                                  ),
+                                // 4. TARJETA DE BALANCE EN VIDRIO AMARILLO
+                                _BalanceCard(
+                                  dailyTotal: paymentsState.dailyTotal,
                                 ),
 
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 28),
 
                                 // 5. ENCABEZADO DE SECCIÓN
                                 Row(
@@ -182,7 +180,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     const Text(
                                       'Pagos recientes',
                                       style: TextStyle(
-                                        fontSize: 21,
+                                        fontSize: 20,
                                         fontWeight: FontWeight.w800,
                                         color: DashboardDesignTokens.cDarkBrownMain,
                                         fontFamily: 'Plus Jakarta Sans',
@@ -198,7 +196,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       child: const Text(
                                         'Ver todos',
                                         style: TextStyle(
-                                          fontSize: 13.5,
+                                          fontSize: 13,
                                           fontWeight: FontWeight.w700,
                                           color: DashboardDesignTokens.cDarkBrownSecondary,
                                           fontFamily: 'Plus Jakarta Sans',
@@ -208,7 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ],
                                 ),
 
-                                const SizedBox(height: 14),
+                                const SizedBox(height: 12),
 
                                 // 6. LISTA DE PAGOS O ESTADO VACÍO
                                 if (paymentsState.payments.isEmpty)
@@ -218,7 +216,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     children: paymentsState.payments
                                         .take(8)
                                         .map((payment) => Padding(
-                                              padding: const EdgeInsets.only(bottom: 12.0),
+                                              padding: const EdgeInsets.only(bottom: 10.0),
                                               child: _PaymentRowItem(payment: payment),
                                             ))
                                         .toList(),
@@ -234,12 +232,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 // DOCK INFERIOR FLOTANTE CON EFECTO DE VIDRIO
                 const Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: 20,
-                  child: RepaintBoundary(
-                    child: _FloatingBottomDock(),
-                  ),
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: _FloatingBottomDock(),
                 ),
               ],
             ),
@@ -250,50 +246,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// --- CONTENEDOR DE VIDRIO OPTIMIZADO PARA ALTO RENDIMIENTO ---
+// --- CONTENEDOR DE VIDRIO GLASSMORPHISM DE ALTA FIDELIDAD ---
 class _GlassContainer extends StatelessWidget {
   final Widget child;
   final double borderRadius;
   final Color backgroundColor;
   final EdgeInsetsGeometry padding;
-  final bool useBlur;
 
   const _GlassContainer({
     required this.child,
     this.borderRadius = 26,
-    this.backgroundColor = const Color(0x6BFFFFFF),
+    this.backgroundColor = const Color(0x61FFFFFF), // Blanco 38%
     this.padding = const EdgeInsets.all(16),
-    this.useBlur = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final container = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: const Color(0xBFFFFFFF), width: 1.0),
-        boxShadow: DashboardDesignTokens.softGlassShadow,
-      ),
-      child: child,
-    );
-
-    if (!useBlur) {
-      return container;
-    }
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: container,
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.65), width: 1.2),
+            boxShadow: DashboardDesignTokens.softGlassShadow,
+          ),
+          child: child,
+        ),
       ),
     );
   }
 }
 
-// --- HEADER EN VIDRIO ---
+// --- CABECERA DE VIDRIO ---
 class _GlassHeader extends StatelessWidget {
   final VoidCallback onExport;
   final VoidCallback onSettings;
@@ -308,14 +296,13 @@ class _GlassHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassContainer(
-      useBlur: true,
-      borderRadius: 26,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      borderRadius: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 38,
+            height: 38,
             decoration: const BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
@@ -323,10 +310,10 @@ class _GlassHeader extends StatelessWidget {
             child: const Icon(
               Icons.notifications_active_rounded,
               color: DashboardDesignTokens.cYellowMain,
-              size: 22,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
 
           const Expanded(
             child: Text(
@@ -334,7 +321,7 @@ class _GlassHeader extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 17,
+                fontSize: 16.5,
                 fontWeight: FontWeight.w800,
                 color: DashboardDesignTokens.cDarkBrownMain,
                 fontFamily: 'Plus Jakarta Sans',
@@ -343,9 +330,9 @@ class _GlassHeader extends StatelessWidget {
           ),
 
           _HeaderIconButton(icon: Icons.download_rounded, onTap: onExport),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           _HeaderIconButton(icon: Icons.settings_rounded, onTap: onSettings),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           _HeaderIconButton(icon: Icons.logout_rounded, onTap: onLogout),
         ],
       ),
@@ -363,16 +350,16 @@ class _HeaderIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 42,
-        height: 42,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
           color: const Color(0x59FFFFFF),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.0),
         ),
-        child: Icon(icon, color: DashboardDesignTokens.cDarkBrownMain, size: 20),
+        child: Icon(icon, color: DashboardDesignTokens.cDarkBrownMain, size: 18),
       ),
     );
   }
@@ -387,10 +374,9 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassContainer(
-      useBlur: false,
       borderRadius: 100,
       backgroundColor: const Color(0x9EFFFFFF),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(
         children: [
           _PulsingDot(
@@ -403,7 +389,7 @@ class _StatusPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: isDetectionActive ? DashboardDesignTokens.cDarkBrownMain : DashboardDesignTokens.cRedMain,
                 fontFamily: 'Plus Jakarta Sans',
@@ -497,10 +483,9 @@ class _TrialPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassContainer(
-      useBlur: false,
       borderRadius: 100,
       backgroundColor: const Color(0x9EFFFFFF),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(
         children: [
           Container(
@@ -518,7 +503,7 @@ class _TrialPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: DashboardDesignTokens.cDarkBrownSecondary,
                 fontFamily: 'Plus Jakarta Sans',
@@ -531,7 +516,7 @@ class _TrialPill extends StatelessWidget {
   }
 }
 
-// --- TARJETA DE BALANCE ---
+// --- TARJETA DE BALANCE EN VIDRIO AMARILLO ---
 class _BalanceCard extends StatelessWidget {
   final double dailyTotal;
 
@@ -540,10 +525,9 @@ class _BalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassContainer(
-      useBlur: true,
-      borderRadius: 32,
+      borderRadius: 30,
       backgroundColor: const Color(0xB2FFF5AA),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -553,14 +537,14 @@ class _BalanceCard extends StatelessWidget {
               'BALANCE DE HOY',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,
                 color: DashboardDesignTokens.cDarkBrownSecondary,
                 fontFamily: 'Plus Jakarta Sans',
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
             Center(
               child: FittedBox(
@@ -576,7 +560,7 @@ class _BalanceCard extends StatelessWidget {
                       const TextSpan(
                         text: 'S/ ',
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 26,
                           fontWeight: FontWeight.w700,
                           color: DashboardDesignTokens.cDarkBrownSecondary,
                         ),
@@ -584,7 +568,7 @@ class _BalanceCard extends StatelessWidget {
                       TextSpan(
                         text: dailyTotal.toStringAsFixed(2),
                         style: const TextStyle(
-                          fontSize: 52,
+                          fontSize: 48,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -1.5,
                           color: DashboardDesignTokens.cDarkBrownMain,
@@ -596,10 +580,10 @@ class _BalanceCard extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0x80FFFFFF),
                 borderRadius: BorderRadius.circular(100),
@@ -614,7 +598,7 @@ class _BalanceCard extends StatelessWidget {
                   Text(
                     'Ingresos en tiempo real',
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: DashboardDesignTokens.cGreenDarkText,
                       fontFamily: 'Plus Jakarta Sans',
@@ -637,10 +621,9 @@ class _EmptyPaymentsGlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassContainer(
-      useBlur: false,
-      borderRadius: 26,
+      borderRadius: 24,
       backgroundColor: const Color(0x80FFFFFF),
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(24),
       child: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -651,12 +634,12 @@ class _EmptyPaymentsGlassCard extends StatelessWidget {
               size: 26,
               color: DashboardDesignTokens.cDarkBrownSecondary,
             ),
-            SizedBox(height: 10),
+            SizedBox(height: 8),
             Text(
               'Aún no hay pagos hoy',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 15.5,
+                fontSize: 15,
                 fontWeight: FontWeight.w800,
                 color: DashboardDesignTokens.cDarkBrownMain,
                 fontFamily: 'Plus Jakarta Sans',
@@ -667,7 +650,7 @@ class _EmptyPaymentsGlassCard extends StatelessWidget {
               'Tus cobros aparecerán aquí.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 12.5,
                 color: DashboardDesignTokens.cGreyText,
                 fontFamily: 'Plus Jakarta Sans',
               ),
@@ -679,7 +662,7 @@ class _EmptyPaymentsGlassCard extends StatelessWidget {
   }
 }
 
-// --- FILA DE PAGO EN VIDRIO OPTIMIZADA PARA ALTO RENDIMIENTO ---
+// --- FILA DE PAGO EN VIDRIO OPTIMIZADA ---
 class _PaymentRowItem extends StatelessWidget {
   final dynamic payment;
 
@@ -691,24 +674,23 @@ class _PaymentRowItem extends StatelessWidget {
     final timeStr = '${payment.parsedAt.hour.toString().padLeft(2, '0')}:${payment.parsedAt.minute.toString().padLeft(2, '0')}';
 
     return _GlassContainer(
-      useBlur: false,
-      borderRadius: 22,
+      borderRadius: 20,
       backgroundColor: const Color(0x8CFFFFFF),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: DashboardDesignTokens.cYellowMain,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(13),
             ),
             child: Center(
               child: Text(
                 initial,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 17,
                   fontWeight: FontWeight.w800,
                   color: DashboardDesignTokens.cDarkBrownMain,
                   fontFamily: 'Plus Jakarta Sans',
@@ -727,7 +709,7 @@ class _PaymentRowItem extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 14.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: DashboardDesignTokens.cDarkBrownMain,
                     fontFamily: 'Plus Jakarta Sans',
@@ -737,7 +719,7 @@ class _PaymentRowItem extends StatelessWidget {
                 Text(
                   'Yape · $timeStr',
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: DashboardDesignTokens.cGreyText,
                     fontFamily: 'Plus Jakarta Sans',
                   ),
@@ -769,8 +751,7 @@ class _FloatingBottomDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassContainer(
-      useBlur: true,
-      borderRadius: 28,
+      borderRadius: 26,
       backgroundColor: const Color(0xB22C2420),
       padding: const EdgeInsets.all(6),
       child: BlocBuilder<SettingsBloc, SettingsState>(
@@ -793,7 +774,7 @@ class _FloatingBottomDock extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
 
               Expanded(
                 child: _DockButton(
@@ -849,26 +830,29 @@ class _DockButtonState extends State<_DockButton> {
         scale: _isPressed ? 0.96 : 1.0,
         duration: const Duration(milliseconds: 100),
         child: Container(
-          height: 52,
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
           decoration: BoxDecoration(
             color: widget.backgroundColor,
-            borderRadius: BorderRadius.circular(23),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(widget.icon, size: 20, color: widget.textColor),
-              const SizedBox(width: 8),
+              Icon(widget.icon, size: 18, color: widget.textColor),
+              const SizedBox(width: 4),
               Flexible(
-                child: Text(
-                  widget.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: widget.textColor,
-                    fontFamily: 'Plus Jakarta Sans',
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: widget.textColor,
+                      fontFamily: 'Plus Jakarta Sans',
+                    ),
                   ),
                 ),
               ),
