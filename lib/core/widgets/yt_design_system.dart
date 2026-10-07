@@ -127,7 +127,7 @@ class _AppButtonState extends State<AppButton> {
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
         decoration: BoxDecoration(
           color: isDisabled ? const Color(0xFFE5E7EB) : baseColor,
-          borderRadius: BorderRadius.circular(28), // Modern Pill Shape
+          borderRadius: BorderRadius.circular(28),
           border: isSecondary ? Border.all(color: const Color(0xFFE5E7EB), width: 1.5) : null,
           boxShadow: isDisabled
               ? []
@@ -143,10 +143,10 @@ class _AppButtonState extends State<AppButton> {
         ),
         child: Center(
           child: widget.isLoading
-              ? SizedBox(
+              ? const SizedBox(
                   height: 20,
                   width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2.5, color: textColor),
+                  child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF2D2100)),
                 )
               : Row(
                   mainAxisSize: MainAxisSize.min,
@@ -372,8 +372,13 @@ class YtLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: CircularProgressIndicator(
-        color: AppTheme.primaryColor,
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: CircularProgressIndicator(
+          color: Color(0xFFFFCD19),
+          strokeWidth: 3.5,
+        ),
       ),
     );
   }
