@@ -1,9 +1,9 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/widgets/yt_design_system.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../payments/presentation/bloc/payments_bloc.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
@@ -66,87 +66,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
           bottom: false,
           child: Stack(
             children: [
-              RefreshIndicator(
-                onRefresh: () async {
-                  context.read<PaymentsBloc>().add(LoadPayments());
-                  context.read<SettingsBloc>().add(LoadControlSettings());
-                },
-                color: const Color(0xFF2C2200),
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.only(bottom: 120),
-                  child: BlocBuilder<SettingsBloc, SettingsState>(
+              Column(
+                children: [
+                  // --- 1. BLOQUE SUPERIOR AMARILLO ESTÁTICO (FIXED AT TOP) ---
+                  BlocBuilder<SettingsBloc, SettingsState>(
                     builder: (context, settingsState) {
-                      return BlocBuilder<PaymentsBloc, PaymentsState>(
-                        builder: (context, paymentsState) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // --- 1. BLOQUE SUPERIOR AMARILLO ---
-                              Container(
-                                width: double.infinity,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFFFCD19), // Amarillo Yape Cálido
-                                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
-                                ),
-                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                                child: Column(
-                                  children: [
-                                    // CABECERA SUPERIOR
-                                    _HeaderCard(
-                                      onExport: () {
-                                        context.read<PaymentsBloc>().add(ExportPayments());
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Generando reporte Excel...')),
-                                        );
-                                      },
-                                      onSettings: () => context.push('/settings'),
-                                      onLogout: () => context.read<AuthBloc>().add(const LogoutRequested()),
-                                    ),
+                      return Container(
+                        width: double.infinity,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFCD19), // Amarillo Yape Cálido
+                          borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0x1A000000),
+                              blurRadius: 16,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _HeaderCard(
+                              onExport: () {
+                                context.read<PaymentsBloc>().add(ExportPayments());
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Generando reporte Excel...')),
+                                );
+                              },
+                              onSettings: () => context.push('/settings'),
+                              onLogout: () => context.read<AuthBloc>().add(const LogoutRequested()),
+                            ),
 
-                                    const SizedBox(height: 12),
+                            const SizedBox(height: 10),
 
-                                    // PASTILLA 1: NOTIFICACIONES ACTIVAS
-                                    _StatusPill(
-                                      isDetectionActive: settingsState.isDetectionEnabled,
-                                    ),
+                            _StatusPill(
+                              isDetectionActive: settingsState.isDetectionEnabled,
+                            ),
 
-                                    const SizedBox(height: 8),
+                            const SizedBox(height: 8),
 
-                                    // PASTILLA 2: PRUEBA GRATUITA
-                                    BlocBuilder<AuthBloc, AuthState>(
-                                      builder: (context, authState) {
-                                        final profile = authState.userProfile;
-                                        if (profile != null && !profile.isSubscribed) {
-                                          return _TrialPill(
-                                            daysLeft: profile.daysLeft,
-                                          );
-                                        }
-                                        return const SizedBox.shrink();
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            BlocBuilder<AuthBloc, AuthState>(
+                              builder: (context, authState) {
+                                final profile = authState.userProfile;
+                                if (profile != null && !profile.isSubscribed) {
+                                  return _TrialPill(
+                                    daysLeft: profile.daysLeft,
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
 
-                              const SizedBox(height: 16),
-
-                              // --- 2. TARJETA DE BALANCE CENTRADA ---
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                child: _BalanceCard(
+                  // --- 2. ÁREA SCROLLABLE INFERIOR (BALANCE Y LISTA DE PAGOS) ---
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        context.read<PaymentsBloc>().add(LoadPayments());
+                        context.read<SettingsBloc>().add(LoadControlSettings());
+                      },
+                      color: const Color(0xFF2C2200),
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                        child: BlocBuilder<PaymentsBloc, PaymentsState>(
+                          builder: (context, paymentsState) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _BalanceCard(
                                   dailyTotal: paymentsState.dailyTotal,
                                 ),
-                              ),
 
-                              const SizedBox(height: 28),
+                                const SizedBox(height: 24),
 
-                              // --- 3. ENCABEZADO DE PAGOS RECIENTES ---
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                                child: Row(
+                                Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
@@ -177,32 +179,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                   ],
                                 ),
-                              ),
 
-                              const SizedBox(height: 12),
+                                const SizedBox(height: 12),
 
-                              // --- 4. LISTA DE PAGOS ---
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                child: paymentsState.payments.isEmpty
-                                    ? const _EmptyPaymentsCard()
-                                    : Column(
-                                        children: paymentsState.payments
-                                            .take(8)
-                                            .map((payment) => Padding(
-                                                  padding: const EdgeInsets.only(bottom: 10.0),
-                                                  child: _PaymentItemRow(payment: payment),
-                                                ))
-                                            .toList(),
+                                // INDICADOR DE CARGA ANIMADO
+                                if (paymentsState.status == PaymentsStatus.loading)
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 36.0),
+                                    child: Center(
+                                      child: Column(
+                                        children: [
+                                          YtLoader(),
+                                          SizedBox(height: 14),
+                                          Text(
+                                            'Cargando pagos en tiempo real...',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF7A6800),
+                                              fontFamily: 'Plus Jakarta Sans',
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
+                                    ),
+                                  )
+                                else if (paymentsState.payments.isEmpty)
+                                  const _EmptyPaymentsCard()
+                                else
+                                  Column(
+                                    children: paymentsState.payments
+                                        .take(8)
+                                        .map((payment) => Padding(
+                                              padding: const EdgeInsets.only(bottom: 10.0),
+                                              child: _PaymentItemRow(payment: payment),
+                                            ))
+                                        .toList(),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
 
               // DOCK INFERIOR FLOTANTE
@@ -236,7 +257,7 @@ class _HeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8D6), // Crema suave
+        color: const Color(0xFFFFF8D6),
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
@@ -497,7 +518,7 @@ class _BalanceCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF0B8), // Crema cálida del balance
+        color: const Color(0xFFFFF0B8),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
@@ -816,7 +837,7 @@ class _DockPillButtonState extends State<_DockPillButton> {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: widget.backgroundColor,
-            borderRadius: BorderRadius.circular(100), // Bordes 100% redondeados como la captura
+            borderRadius: BorderRadius.circular(100),
             boxShadow: [
               BoxShadow(
                 color: widget.backgroundColor.withValues(alpha: 0.3),

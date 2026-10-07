@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../../core/widgets/yt_design_system.dart';
 
 class OnboardingTutorialScreen extends StatefulWidget {
   const OnboardingTutorialScreen({super.key});
@@ -17,32 +16,36 @@ class _OnboardingTutorialScreenState extends State<OnboardingTutorialScreen> {
 
   final List<OnboardingStep> _steps = [
     OnboardingStep(
-      title: 'Registra tu Cuenta',
-      description: 'Crea tu perfil en segundos. Elige tu rubro comercial y regístrate de forma tradicional o mediante tu cuenta de Google.',
-      icon: Icons.person_add_rounded,
-      color: const Color(0xFF7C4DFF),
-      gradientColors: [const Color(0xFF7C4DFF), const Color(0xFF9E77F3)],
+      title: '¡Bienvenido a SonoPay!',
+      subtitle: 'PASO 1 DE 4',
+      description: 'Tu asistente de cobros por voz en tiempo real para Yape y Plin. Cobra sin mirar el celular mientras conduces o atiendes.',
+      icon: Icons.notifications_active_rounded,
+      iconColor: const Color(0xFF2C2200),
+      cardBgColor: const Color(0xFFFFCD19),
     ),
     OnboardingStep(
-      title: 'Alertas de Pago por Voz',
-      description: 'SonoPay intercepta tus notificaciones de Yape, Plin y más, leyéndolas en voz alta en tiempo real para que cobres sin mirar la pantalla.',
+      title: 'Alertas de Voz al Instante',
+      subtitle: 'PASO 2 DE 4',
+      description: 'Cada Yape o Plin recibido se anuncia en voz alta ("Juan Pérez envió 15 soles") aunque tengas el celular bloqueado o guardado.',
       icon: Icons.record_voice_over_rounded,
-      color: const Color(0xFF00E5FF),
-      gradientColors: [const Color(0xFF00BFA5), const Color(0xFF00E5FF)],
+      iconColor: const Color(0xFF1B5E20),
+      cardBgColor: const Color(0xFFE8F5E9),
     ),
     OnboardingStep(
-      title: 'Exporta tus Reportes',
-      description: 'Mantén el control total de tu negocio. Exporta tu historial de cobros diarios o mensuales directamente a archivos de Excel.',
+      title: 'Reportes y Filtro por Fechas',
+      subtitle: 'PASO 3 DE 4',
+      description: 'Filtra tus cobros diarios, calcula tu balance en tiempo real y descarga tus reportes detallados directamente a archivos Excel.',
       icon: Icons.description_rounded,
-      color: const Color(0xFF00E676),
-      gradientColors: [const Color(0xFF00E676), const Color(0xFF69F0AE)],
+      iconColor: const Color(0xFF0D47A1),
+      cardBgColor: const Color(0xFFE3F2FD),
     ),
     OnboardingStep(
-      title: 'Vincula Dispositivos',
-      description: 'Conecta múltiples terminales (cajas, conductores) con tu código de vinculación para centralizar cobros y alertas en tiempo real.',
+      title: 'Vinculación de Dispositivos',
+      subtitle: 'PASO 4 DE 4',
+      description: 'Conecta cobradores o cajas secundarias con tu código de vinculación para recibir avisos de pago centralizados al instante.',
       icon: Icons.phonelink_setup_rounded,
-      color: const Color(0xFFFF3D00),
-      gradientColors: [const Color(0xFFFF3D00), const Color(0xFFFF9100)],
+      iconColor: const Color(0xFFE65100),
+      cardBgColor: const Color(0xFFFFF3E0),
     ),
   ];
 
@@ -56,81 +59,197 @@ class _OnboardingTutorialScreenState extends State<OnboardingTutorialScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0B071E) : const Color(0xFFF9F9FB),
+      backgroundColor: const Color(0xFFF9FAFC),
       body: SafeArea(
         child: Column(
           children: [
-            // Botón Omitir en la parte superior derecha
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: TextButton(
-                  onPressed: _completeOnboarding,
-                  child: Text(
-                    'Omitir',
-                    style: TextStyle(
-                      color: isDark ? Colors.white60 : Colors.grey.shade600,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
+            // BARRA SUPERIOR CON BOTÓN OMITIR
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFCD19),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _steps[_currentPage].subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF7A6800),
+                          letterSpacing: 1.1,
+                          fontFamily: 'Plus Jakarta Sans',
+                        ),
+                      ),
+                    ],
+                  ),
+                  TextButton(
+                    onPressed: _completeOnboarding,
+                    child: const Text(
+                      'Omitir',
+                      style: TextStyle(
+                        color: Color(0xFF8C827A),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        fontFamily: 'Plus Jakarta Sans',
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-            
-            // Cuerpo del carrusel (PageView)
+
+            // CARROUSEL DE PASOS (PAGEVIEW)
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
                 itemCount: _steps.length,
                 onPageChanged: (index) {
-                  setState(() {
-                    _currentPage = index;
-                  });
+                  setState(() => _currentPage = index);
                 },
                 itemBuilder: (context, index) {
                   final step = _steps[index];
-                  return AnimatedOnboardingContent(
-                    step: step,
-                    isActive: _currentPage == index,
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // TARJETA DE ILUSTRACIÓN
+                        Container(
+                          width: double.infinity,
+                          height: 240,
+                          decoration: BoxDecoration(
+                            color: step.cardBgColor,
+                            borderRadius: BorderRadius.circular(36),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 100,
+                              height: 100,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                step.icon,
+                                size: 52,
+                                color: step.iconColor,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // TÍTULO DE PASO
+                        Text(
+                          step.title,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF2C2200),
+                            fontFamily: 'Plus Jakarta Sans',
+                            height: 1.2,
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // DESCRIPCIÓN DE PASO
+                        Text(
+                          step.description,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            color: Color(0xFF6E655F),
+                            height: 1.5,
+                            fontFamily: 'Plus Jakarta Sans',
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
             ),
 
-            // Controles inferiores (Indicadores y Botones)
+            // BARRA INFERIOR DE INDICADORES Y BOTÓN PRINCIPAL
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 children: [
-                  // Dot Indicators
+                  // INDICADORES DE PUNTOS
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
                       _steps.length,
-                      (index) => _buildDot(index, theme),
+                      (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        height: 8,
+                        width: _currentPage == index ? 28 : 8,
+                        decoration: BoxDecoration(
+                          color: _currentPage == index
+                              ? const Color(0xFFFFCD19)
+                              : const Color(0xFFE0E0E0),
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 36),
-                  
-                  // Botón Siguiente / Comenzar
-                  YtButton(
-                    label: _currentPage == _steps.length - 1 ? 'Comenzar' : 'Siguiente',
-                    onPressed: () {
-                      if (_currentPage < _steps.length - 1) {
-                        _pageController.nextPage(
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeInOutCubic,
-                        );
-                      } else {
-                        _completeOnboarding();
-                      }
-                    },
+
+                  const SizedBox(height: 28),
+
+                  // BOTÓN SIGUIENTE / COMENZAR
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFCD19),
+                        foregroundColor: const Color(0xFF2C2200),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                      ),
+                      onPressed: () {
+                        if (_currentPage < _steps.length - 1) {
+                          _pageController.nextPage(
+                            duration: const Duration(milliseconds: 350),
+                            curve: Curves.easeInOut,
+                          );
+                        } else {
+                          _completeOnboarding();
+                        }
+                      },
+                      child: Text(
+                        _currentPage == _steps.length - 1 ? '¡Comenzar Ahora!' : 'Siguiente',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: 'Plus Jakarta Sans',
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -140,147 +259,22 @@ class _OnboardingTutorialScreenState extends State<OnboardingTutorialScreen> {
       ),
     );
   }
-
-  Widget _buildDot(int index, ThemeData theme) {
-    final isSelected = _currentPage == index;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.symmetric(horizontal: 5),
-      height: 8,
-      width: isSelected ? 24 : 8,
-      decoration: BoxDecoration(
-        color: isSelected
-            ? theme.colorScheme.primary
-            : theme.colorScheme.primary.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(4),
-      ),
-    );
-  }
 }
 
 class OnboardingStep {
   final String title;
+  final String subtitle;
   final String description;
   final IconData icon;
-  final Color color;
-  final List<Color> gradientColors;
+  final Color iconColor;
+  final Color cardBgColor;
 
   OnboardingStep({
     required this.title,
+    required this.subtitle,
     required this.description,
     required this.icon,
-    required this.color,
-    required this.gradientColors,
+    required this.iconColor,
+    required this.cardBgColor,
   });
-}
-
-class AnimatedOnboardingContent extends StatelessWidget {
-  final OnboardingStep step;
-  final bool isActive;
-
-  const AnimatedOnboardingContent({
-    super.key,
-    required this.step,
-    required this.isActive,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Ilustración animada con iconos y gradientes
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeOutBack,
-            padding: EdgeInsets.all(isActive ? 32 : 16),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  step.color.withValues(alpha: 0.15),
-                  step.color.withValues(alpha: 0.0),
-                ],
-                radius: 1.0,
-              ),
-            ),
-            child: TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 600),
-              tween: Tween(begin: 0.0, end: isActive ? 1.0 : 0.0),
-              curve: Curves.elasticOut,
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Container(
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: step.gradientColors,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: step.color.withValues(alpha: 0.35),
-                          blurRadius: 25,
-                          offset: const Offset(0, 5), // Reducido de 10
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      step.icon,
-                      size: 72,
-                      color: Colors.white,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 32), // Reducido de 48
-          
-          // Título del paso
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 400),
-            opacity: isActive ? 1.0 : 0.0,
-            child: Text(
-              step.title,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-                letterSpacing: 0.5,
-                height: 1.2, // Mejor ajuste de línea
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Descripción del paso
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 500),
-            opacity: isActive ? 1.0 : 0.0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0), // Aumentado padding
-              child: Text(
-                step.description,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey,
-                  height: 1.5, // Ajustado
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
