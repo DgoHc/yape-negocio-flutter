@@ -34,7 +34,14 @@ class UserProfile {
     required this.createdAt,
   });
 
-  /// Indica si el usuario tiene acceso (prueba activa o suscripción válida.
+  /// Días restantes de prueba gratuita
+  int get daysLeft {
+    if (trialEndDate == null) return 0;
+    final remaining = trialEndDate!.difference(DateTime.now()).inDays;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  /// Indica si el usuario tiene acceso (prueba activa o suscripción válida).
   bool get hasAccess {
     final now = DateTime.now();
     if (isSubscribed) {

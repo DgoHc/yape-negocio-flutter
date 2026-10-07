@@ -132,16 +132,18 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         val subText = extras.get("android.subText")?.toString() ?: ""
         val tickerText = sbnNonNull.notification.tickerText?.toString() ?: ""
 
-        var content = if (bigText.length > text.length) bigText else text
-        if (content.isEmpty()) content = tickerText
-        if (content.isEmpty()) content = subText
+        val fullContent = listOf(text, bigText, subText, tickerText)
+            .filter { it.isNotEmpty() }
+            .maxByOrNull { it.length } ?: ""
 
-        Log.d("SonoPayService", "Notification Captured: pkg=$packageName | title=$title | content=$content")
+        val rawBody = if (fullContent.isNotEmpty()) fullContent else title
+
+        Log.d("SonoPayService", "Notification Captured: pkg=$packageName | title=$title | rawBody=$rawBody")
 
         val data = mutableMapOf<String, Any>(
             "packageName" to packageName, 
             "rawTitle" to title, 
-            "rawBody" to content
+            "rawBody" to rawBody
         )
 
         // 1. Intentar enviar a Flutter si está abierto en primer plano
@@ -154,7 +156,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         }
 
         // 2. Parsear el pago nativamente en Kotlin para TTS y Cola en Segundo Plano
-        val parsed = parseNativePayment(title, content)
+        val parsed = parseNativePayment(title, rawBody)
         if (parsed != null) {
             val senderName = parsed.first
             val amount = parsed.second
@@ -163,7 +165,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             speakNative("$senderName envió $amount soles")
 
             // Guardar en cola nativa de SharedPreferences
-            savePendingPaymentToPrefs(senderName, amount, "$title $content")
+            savePendingPaymentToPrefs(senderName, amount, "$title $rawBody")
         }
     }
 
@@ -208,6 +210,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         val fullText = "$title $body".replace("\n", " ").trim()
         
         val patterns = listOf(
+            Pattern.compile("Confirmaci[óo]n\\s+de\\s+Pago\\s+(?:Yape!?\\s*)?(.+?)\\s*[-–]?\\s*(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("Te\\s+yapeó\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)\\s+(.+)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(.+?)\\s+te\\s+yapeó\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("¡?Te\\s+yapearon!?\\s+(.+?)\\s*[-–]\\s*(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
@@ -232,9 +235,14 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
                     }
 
                     if (amount != null && amount > 0 && name.isNotEmpty()) {
-                        name = name.replace(Regex("^(?:Yape:?|Plin:?|¡?Te\\s+yapearon!?|¡?Recibiste\\s+un\\s+Yape!?)\\s*"), "")
-                            .replace("*", "")
+                        name = name
+                            .replace(Regex("(?i)^(?:Confirmaci[óo]n(?:\\s+de)?(?:\\s+Pago)?(?:\\s+Yape!?)?|Yape:?|Plin:?|¡?Te\\s+yapearon!?|¡?Recibiste\\s+un\\s+(?:Yape|Plin)!?)\\s*"), "")
+                            .replace(Regex("(?i)^Confirmaci[óo]n\\s+de\\s+(?:Pago\\s+)?(?:Yape!?)?\\s*"), "")
+                            .replace(Regex("(?i)^Yape!|\\bYape!\\b"), "")
+                            .replace(Regex("^[¡!*#\\-_]+\\s*"), "")
+                            .replace(Regex("[.|*#\\-_]+$"), "")
                             .trim()
+                        if (name.isEmpty()) name = "Cliente Yape"
                         return Pair(name, amount)
                     }
                 } catch (_: Exception) {}

@@ -18,6 +18,8 @@ class PaymentParser {
 
   /// Lista de regex para diferentes formatos de Yape y Plin (Personal, Negocios, etc.)
   static final List<RegExp> _incomingPaymentRegexes = [
+    // Formato 0: Confirmación de Pago [Nombre] - S/ [Monto] o Confirmación de Pago Yape! [Nombre]
+    RegExp(r"Confirmaci[óo]n\s+de\s+Pago\s+(?:Yape!?\s*)?(.+?)\s*[-–]?\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     // Formato Yape 1: Te yapeó S/ 10.00 Juan Perez
     RegExp(r"Te\s+yapeó\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+(.+)", caseSensitive: false),
     // Formato Yape 2: Juan Perez te yapeó S/ 10.00
@@ -64,7 +66,7 @@ class PaymentParser {
     for (final regex in _incomingPaymentRegexes) {
       final match = regex.firstMatch(cleanRaw);
       if (match != null) {
-        // Chequear patrón 1: "Te yapeó S/ 10.00 Juan Perez"
+        // Chequear si es el formato "Te yapeó S/ 10.00 Juan Perez"
         if (cleanRaw.toLowerCase().startsWith("te yapeó")) {
           currency = match.group(1)?.trim() ?? "S/";
           final amountStr = match.group(2)?.replaceAll(',', '.').trim() ?? "0";
@@ -112,12 +114,8 @@ class PaymentParser {
       return const Left(ServerFailure('Formato no reconocido'));
     }
 
-    // Limpieza del nombre
-    senderName = senderName
-        .replaceAll(RegExp(r"^(?:Yape:?\s*|Plin:?\s*|¡?Te\s+yapearon!?\s*|¡?Recibiste\s+un\s+(?:Yape|Plin)!?\s*)", caseSensitive: false), "")
-        .trim();
-    senderName = senderName.replaceAll('*', '');
-    senderName = senderName.replaceAll(RegExp(r'[.|*#\-_]+$'), '').trim();
+    // LIMPIEZA AGRESIVA DEL NOMBRE DE REMITENTE
+    senderName = _cleanSenderName(senderName);
 
     AppLogger.i('PARSER SUCCESS: $senderName | $amount');
 
@@ -128,5 +126,26 @@ class PaymentParser {
       rawText: raw,
       parsedAt: DateTime.now(),
     ));
+  }
+
+  static String _cleanSenderName(String name) {
+    var cleaned = name;
+
+    // 1. Quitar prefijos comunes de Yape/Plin y frases de sistema
+    cleaned = cleaned.replaceAll(
+      RegExp(r"^(?:Confirmaci[óo]n(?:\s+de)?(?:\s+Pago)?(?:\s+Yape!?)?|Yape:?|Plin:?|¡?Te\s+yapearon!?|¡?Recibiste\s+un\s+(?:Yape|Plin)!?)\s*", caseSensitive: false),
+      "",
+    );
+
+    // 2. Limpieza adicional de "Confirmación de Pago" o "Yape!" si persisten
+    cleaned = cleaned
+        .replaceAll(RegExp(r"^Confirmaci[óo]n\s+de\s+(?:Pago\s+)?(?:Yape!?)?\s*", caseSensitive: false), "")
+        .replaceAll(RegExp(r"^Yape!|\bYape!\b", caseSensitive: false), "");
+
+    // 3. Quitar asteriscos, signos de admiración y caracteres especiales iniciales/finales
+    cleaned = cleaned.replaceAll(RegExp(r"^[¡!*#\-_]+\s*"), "");
+    cleaned = cleaned.replaceAll(RegExp(r"[.|*#\-_]+$"), "").trim();
+
+    return cleaned.isEmpty ? "Cliente Yape" : cleaned;
   }
 }

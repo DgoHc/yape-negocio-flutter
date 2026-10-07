@@ -2,326 +2,296 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/yt_design_system.dart';
-import '../../../../core/utils/clipboard_payment_detector.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../payments/presentation/bloc/payments_bloc.dart';
-import '../../../notifications/data/notification_platform_service.dart';
-import '../../../notifications/presentation/bloc/notification_bloc.dart';
-import '../../../notifications/presentation/bloc/notification_event.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
+import '../../../notifications/data/notification_platform_service.dart';
 
-// --- TOKENS DE DISEÑO DESIGNADOS ---
+// --- DESIGN TOKENS Y COLORES OFICIALES DEL DASHBOARD MÁS MODERNO ---
 class DashboardDesignTokens {
-  static const Color cYellowMain = Color(0xFFFFC93C);
-  static const Color cYellowLight = Color(0xFFFFD966);
-  static const Color cGreenMain = Color(0xFF22C55E);
-  static const Color cGreenDarkText = Color(0xFF166534);
-  static const Color cDarkBrownMain = Color(0xFF2A1F00);
-  static const Color cDarkBrownSecondary = Color(0xFF7A6420);
-  static const Color cBg = Color(0xFFF7F8FC);
-  static const Color cGreyText = Color(0xFF6B7280);
+  static const Color bgGradientTop = Color(0xFFFBFBFE);    // Blanco Nieve casi puro
+  static const Color bgGradientMid = Color(0xFFF3F1FD);    // Violeta Pastel Místico
+  static const Color bgGradientBottom = Color(0xFFFFF7E6); // Calidez Amarilla Suave
 
-  static const List<BoxShadow> softGlassShadow = [
+  static const Color cYellowMain = Color(0xFFFFD500);       // Amarillo Yape/Brillante
+  static const Color cDarkBrownMain = Color(0xFF2C2420);    // Marrón Oscuro/Casi Negro
+  static const Color cDarkBrownSecondary = Color(0xFF5A4E48); // Marrón Neutro
+  static const Color cGreyText = Color(0xFF8C827A);          // Gris Suave
+  static const Color cGreenMain = Color(0xFF00E676);        // Verde Neón para Notificaciones
+  static const Color cGreenDarkText = Color(0xFF00893E);    // Verde Oscuro para montos
+  static const Color cRedMain = Color(0xFFFF3B30);          // Rojo Alerta
+
+  static final List<BoxShadow> softGlassShadow = [
     BoxShadow(
-      color: Color(0x12000000),
-      blurRadius: 10,
-      offset: Offset(0, 4),
+      color: const Color(0xFF2C2420).withValues(alpha: 0.04),
+      blurRadius: 24,
+      spreadRadius: 0,
+      offset: const Offset(0, 10),
+    ),
+    BoxShadow(
+      color: Colors.white.withValues(alpha: 0.6),
+      blurRadius: 12,
+      spreadRadius: -4,
+      offset: const Offset(0, -4),
     ),
   ];
 }
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => sl<NotificationBloc>()..add(GetLinkRequests()),
-      child: const DashboardView(),
-    );
-  }
+  State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class DashboardView extends StatefulWidget {
-  const DashboardView({super.key});
-
-  @override
-  State<DashboardView> createState() => _DashboardViewState();
-}
-
-class _DashboardViewState extends State<DashboardView> with WidgetsBindingObserver {
-  final ScrollController _scrollController = ScrollController();
+class _DashboardScreenState extends State<DashboardScreen> {
+  final NotificationPlatformService _notificationService = sl<NotificationPlatformService>();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ClipboardPaymentDetector.checkClipboard(context);
-    });
+    context.read<PaymentsBloc>().add(LoadPayments());
+    context.read<SettingsBloc>().add(LoadControlSettings());
+    _checkNotificationPermissionOnStart();
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      ClipboardPaymentDetector.checkClipboard(context);
+  Future<void> _checkNotificationPermissionOnStart() async {
+    final isGranted = await _notificationService.isNotificationPermissionGranted();
+    if (!isGranted && mounted) {
+      context.push('/notification-onboarding');
     }
-  }
-
-  Future<void> _exportToExcel(BuildContext context) async {
-    final now = DateTime.now();
-    context.read<PaymentsBloc>().add(
-          ExportPayments(
-            startDate: DateTime(now.year, now.month, now.day),
-            endDate: now,
-          ),
-        );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Generando reporte Excel...')),
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          'Cerrar Sesión',
-          style: TextStyle(fontWeight: FontWeight.bold, color: DashboardDesignTokens.cDarkBrownMain),
-        ),
-        content: const Text(
-          '¿Estás seguro que deseas salir de SonoPay?',
-          style: TextStyle(color: DashboardDesignTokens.cGreyText),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          AppButton(
-            label: 'Salir',
-            color: AppTheme.errorColor,
-            onPressed: () {
-              context.read<AuthBloc>().add(const LogoutRequested());
-              Navigator.pop(ctx);
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PaymentsBloc, PaymentsState>(
-      builder: (context, paymentsState) {
-        return BlocBuilder<AuthBloc, AuthState>(
-          builder: (context, authState) {
-            final profile = authState.userProfile;
-
-            return Scaffold(
-              backgroundColor: DashboardDesignTokens.cBg,
-              body: MultiBlocListener(
-                listeners: [
-                  BlocListener<AuthBloc, AuthState>(
-                    listener: (context, state) {
-                      if (state.status == AuthStatus.initial ||
-                          state.status == AuthStatus.unauthenticated) {
-                        context.go('/login');
-                      }
-                    },
+    return Scaffold(
+      body: MultiBlocListener(
+        listeners: [
+          BlocListener<AuthBloc, AuthState>(
+            listener: (context, state) {
+              if (state.status == AuthStatus.unauthenticated) {
+                context.go('/login');
+              }
+            },
+          ),
+          BlocListener<PaymentsBloc, PaymentsState>(
+            listener: (context, state) {
+              if (state.status == PaymentsStatus.failure && state.error != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.error!),
+                    backgroundColor: AppTheme.errorColor,
                   ),
-                ],
-                child: Stack(
-                  children: [
-                    // 1. FONDO SUPERIOR AMARILLO SÓLIDO CON BORDE CURVO ELÍPTICO
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: 280,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: DashboardDesignTokens.cYellowMain,
-                          borderRadius: BorderRadius.vertical(
-                            bottom: Radius.elliptical(400, 68),
-                          ),
-                        ),
-                      ),
+                );
+              }
+            },
+          ),
+        ],
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                DashboardDesignTokens.bgGradientTop,
+                DashboardDesignTokens.bgGradientMid,
+                DashboardDesignTokens.bgGradientBottom,
+              ],
+              stops: [0.0, 0.5, 1.0],
+            ),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Stack(
+              children: [
+                // CONTENIDO SCROLLABLE PRINCIPAL
+                RefreshIndicator(
+                  onRefresh: () async {
+                    context.read<PaymentsBloc>().add(LoadPayments());
+                    context.read<SettingsBloc>().add(LoadControlSettings());
+                  },
+                  color: DashboardDesignTokens.cDarkBrownMain,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
                     ),
-
-                    // 2. CONTENIDO PRINCIPAL EN UN SOLO SCROLL
-                    SafeArea(
-                      child: SingleChildScrollView(
-                        controller: _scrollController,
-                        physics: const BouncingScrollPhysics(),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const SizedBox(height: 8),
-
-                              // HEADER EN VIDRIO
-                              _GlassHeader(
-                                onExport: () => _exportToExcel(context),
-                                onSettings: () => context.push('/settings'),
-                                onLogout: () => _showLogoutDialog(context),
-                              ),
-
-                              const SizedBox(height: 12),
-
-                              // PASTILLA DE ESTADO (CADA UNA EN SU PROPIA FILA DE ANCHO COMPLETO)
-                              const _StatusPill(),
-
-                              if (profile != null && profile.isTrialActive && profile.trialEndDate != null) ...[
-                                const SizedBox(height: 8),
-                                _TrialPill(
-                                  daysLeft: profile.trialEndDate!
-                                      .difference(DateTime.now())
-                                      .inDays,
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+                    child: BlocBuilder<SettingsBloc, SettingsState>(
+                      builder: (context, settingsState) {
+                        return BlocBuilder<PaymentsBloc, PaymentsState>(
+                          builder: (context, paymentsState) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 1. CABECERA EN VIDRIO (LOGO + DOCK DE ACCIONES)
+                                _GlassHeader(
+                                  onExport: () {
+                                    context.read<PaymentsBloc>().add(ExportPayments());
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Generando reporte Excel...')),
+                                    );
+                                  },
+                                  onSettings: () => context.push('/settings'),
+                                  onLogout: () => context.read<AuthBloc>().add(const LogoutRequested()),
                                 ),
-                              ],
 
-                              const SizedBox(height: 28),
+                                const SizedBox(height: 14),
 
-                              // TARJETA DE BALANCE EN VIDRIO AMARILLO LIGERO (PERFECTAMENTE CENTRADO)
-                              _BalanceCard(
-                                dailyTotal: paymentsState.dailyTotal,
-                              ),
+                                // 2. PASTILLA 1: NOTIFICACIONES ACTIVAS / INACTIVAS
+                                _StatusPill(
+                                  isDetectionActive: settingsState.isDetectionEnabled,
+                                ),
 
-                              const SizedBox(height: 36),
+                                const SizedBox(height: 10),
 
-                              // ENCABEZADO DE SECCIÓN
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Pagos recientes',
-                                    style: TextStyle(
-                                      fontSize: 21,
-                                      fontWeight: FontWeight.w800,
-                                      color: DashboardDesignTokens.cDarkBrownMain,
-                                      fontFamily: 'Plus Jakarta Sans',
-                                    ),
+                                // 3. PASTILLA 2: DIAS RESTANTES DE PRUEBA GRATUITA
+                                BlocBuilder<AuthBloc, AuthState>(
+                                  builder: (context, authState) {
+                                    final profile = authState.userProfile;
+                                    if (profile != null && !profile.isSubscribed) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(bottom: 14.0),
+                                        child: _TrialPill(
+                                          daysLeft: profile.daysLeft,
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                // 4. TARJETA DE BALANCE EN VIDRIO AMARILLO LIGERO (PERFECTAMENTE CENTRADO)
+                                RepaintBoundary(
+                                  child: _BalanceCard(
+                                    dailyTotal: paymentsState.dailyTotal,
                                   ),
-                                  TextButton(
-                                    onPressed: () => context.push('/payment-history'),
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: const Text(
-                                      'Ver todos',
+                                ),
+
+                                const SizedBox(height: 32),
+
+                                // 5. ENCABEZADO DE SECCIÓN
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Pagos recientes',
                                       style: TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: DashboardDesignTokens.cDarkBrownSecondary,
+                                        fontSize: 21,
+                                        fontWeight: FontWeight.w800,
+                                        color: DashboardDesignTokens.cDarkBrownMain,
                                         fontFamily: 'Plus Jakarta Sans',
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              // LISTA DE PAGOS O ESTADO VACÍO
-                              if (paymentsState.payments.isEmpty)
-                                const _EmptyPaymentsGlassCard()
-                              else
-                                Column(
-                                  children: paymentsState.payments
-                                      .take(5)
-                                      .map((payment) => Padding(
-                                            padding: const EdgeInsets.only(bottom: 12.0),
-                                            child: _PaymentRowItem(payment: payment),
-                                          ))
-                                      .toList(),
+                                    TextButton(
+                                      onPressed: () => context.push('/payment-history'),
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      child: const Text(
+                                        'Ver todos',
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: DashboardDesignTokens.cDarkBrownSecondary,
+                                          fontFamily: 'Plus Jakarta Sans',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
 
-                              // Padding inferior suficiente para que el Dock no tape contenido
-                              const SizedBox(height: 130),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                                const SizedBox(height: 14),
 
-                    // 3. DOCK INFERIOR FLOTANTE EN VIDRIO
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 18,
-                      child: SafeArea(
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 388),
-                            child: const _FloatingBottomDock(),
-                          ),
-                        ),
-                      ),
+                                // 6. LISTA DE PAGOS O ESTADO VACÍO
+                                if (paymentsState.payments.isEmpty)
+                                  const _EmptyPaymentsGlassCard()
+                                else
+                                  Column(
+                                    children: paymentsState.payments
+                                        .take(8)
+                                        .map((payment) => Padding(
+                                              padding: const EdgeInsets.only(bottom: 12.0),
+                                              child: _PaymentRowItem(payment: payment),
+                                            ))
+                                        .toList(),
+                                  ),
+                              ],
+                            );
+                          },
+                        );
+                      },
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            );
-          },
-        );
-      },
+
+                // DOCK INFERIOR FLOTANTE CON EFECTO DE VIDRIO
+                const Positioned(
+                  left: 20,
+                  right: 20,
+                  bottom: 20,
+                  child: RepaintBoundary(
+                    child: _FloatingBottomDock(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-// --- CONTENEDOR DE VIDRIO REUTILIZABLE (GLASS CONTAINER) ---
+// --- CONTENEDOR DE VIDRIO OPTIMIZADO PARA ALTO RENDIMIENTO ---
 class _GlassContainer extends StatelessWidget {
   final Widget child;
   final double borderRadius;
   final Color backgroundColor;
   final EdgeInsetsGeometry padding;
+  final bool useBlur;
 
   const _GlassContainer({
     required this.child,
     this.borderRadius = 26,
-    this.backgroundColor = const Color(0x6BFFFFFF), // Blanco 42%
+    this.backgroundColor = const Color(0x6BFFFFFF),
     this.padding = const EdgeInsets.all(16),
+    this.useBlur = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final container = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: const Color(0xBFFFFFFF), width: 1.0),
+        boxShadow: DashboardDesignTokens.softGlassShadow,
+      ),
+      child: child,
+    );
+
+    if (!useBlur) {
+      return container;
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: const Color(0xBFFFFFFF), width: 1.0), // Borde blanco 75%
-            boxShadow: DashboardDesignTokens.softGlassShadow,
-          ),
-          child: child,
-        ),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: container,
       ),
     );
   }
 }
 
-// --- 2. HEADER EN VIDRIO ---
+// --- HEADER EN VIDRIO ---
 class _GlassHeader extends StatelessWidget {
   final VoidCallback onExport;
   final VoidCallback onSettings;
@@ -336,11 +306,11 @@ class _GlassHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassContainer(
+      useBlur: true,
       borderRadius: 26,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          // Logo circular blanco de 44 dp con icono llave amarilla
           Container(
             width: 44,
             height: 44,
@@ -356,7 +326,6 @@ class _GlassHeader extends StatelessWidget {
           ),
           const SizedBox(width: 12),
 
-          // Título SonoPay
           const Expanded(
             child: Text(
               'SonoPay',
@@ -371,7 +340,6 @@ class _GlassHeader extends StatelessWidget {
             ),
           ),
 
-          // 3 Botones de vidrio de 42 dp
           _HeaderIconButton(icon: Icons.download_rounded, onTap: onExport),
           const SizedBox(width: 6),
           _HeaderIconButton(icon: Icons.settings_rounded, onTap: onSettings),
@@ -398,100 +366,54 @@ class _HeaderIconButton extends StatelessWidget {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: const Color(0x6BFFFFFF),
+          color: const Color(0x59FFFFFF),
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: const Color(0xBFFFFFFF), width: 1.0),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.0),
         ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: DashboardDesignTokens.cDarkBrownMain,
-        ),
+        child: Icon(icon, color: DashboardDesignTokens.cDarkBrownMain, size: 20),
       ),
     );
   }
 }
 
-// --- 3. PASTILLA DE ESTADO EN VIDRIO (FILA INDIVIDUAL DE ANCHO COMPLETO) ---
-class _StatusPill extends StatefulWidget {
-  const _StatusPill();
+// --- PASTILLA DE ESTADO DE NOTIFICACIONES ---
+class _StatusPill extends StatelessWidget {
+  final bool isDetectionActive;
 
-  @override
-  State<_StatusPill> createState() => _StatusPillState();
-}
-
-class _StatusPillState extends State<_StatusPill> with WidgetsBindingObserver {
-  bool _hasPermission = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _checkPermission();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _checkPermission();
-    }
-  }
-
-  Future<void> _checkPermission() async {
-    final granted = await sl<NotificationPlatformService>().isNotificationPermissionGranted();
-    if (mounted) setState(() => _hasPermission = granted);
-  }
+  const _StatusPill({required this.isDetectionActive});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<Map<String, dynamic>>(
-      stream: sl<NotificationPlatformService>().notificationStream,
-      builder: (context, snapshot) {
-        final isConnected = snapshot.hasData && snapshot.data?['status'] == 'connected';
-        final active = isConnected || _hasPermission;
-
-        return _GlassContainer(
-          borderRadius: 100, // Radio completo
-          backgroundColor: active ? const Color(0x3822C55E) : const Color(0x38EF4444), // Verde o Rojo al 22%
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: InkWell(
-            onTap: active ? null : () => sl<NotificationPlatformService>().openNotificationSettings(),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                _PulsingDot(color: active ? DashboardDesignTokens.cGreenMain : AppTheme.errorColor),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    active ? 'Notificaciones activas' : 'Notificaciones inactivas (Toca para activar)',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: active ? DashboardDesignTokens.cGreenDarkText : AppTheme.errorColor,
-                      fontFamily: 'Plus Jakarta Sans',
-                    ),
-                  ),
-                ),
-                if (!active)
-                  const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppTheme.errorColor),
-              ],
+    return _GlassContainer(
+      useBlur: false,
+      borderRadius: 100,
+      backgroundColor: const Color(0x9EFFFFFF),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          _PulsingDot(
+            color: isDetectionActive ? DashboardDesignTokens.cGreenMain : DashboardDesignTokens.cRedMain,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isDetectionActive ? 'Notificaciones de Yape y Plin activas' : 'Detección pausada',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: isDetectionActive ? DashboardDesignTokens.cDarkBrownMain : DashboardDesignTokens.cRedMain,
+                fontFamily: 'Plus Jakarta Sans',
+              ),
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
 
-// --- PUNTO VERDE PULSANTE SUAVE ---
 class _PulsingDot extends StatefulWidget {
   final Color color;
 
@@ -564,7 +486,7 @@ class _PulsingDotPainter extends CustomPainter {
   bool shouldRepaint(covariant _PulsingDotPainter oldDelegate) => true;
 }
 
-// --- 4. PASTILLA DE PRUEBA GRATUITA (FILA INDIVIDUAL) ---
+// --- PASTILLA DE PRUEBA GRATUITA ---
 class _TrialPill extends StatelessWidget {
   final int daysLeft;
 
@@ -573,44 +495,31 @@ class _TrialPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassContainer(
+      useBlur: false,
       borderRadius: 100,
-      backgroundColor: const Color(0x9EFFFFFF), // Blanco al 62%
+      backgroundColor: const Color(0x9EFFFFFF),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.stars_rounded, color: DashboardDesignTokens.cYellowMain, size: 18),
-          const SizedBox(width: 8),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: DashboardDesignTokens.cYellowMain,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Prueba gratuita: $daysLeft días restantes',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: DashboardDesignTokens.cDarkBrownMain,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: DashboardDesignTokens.cDarkBrownSecondary,
                 fontFamily: 'Plus Jakarta Sans',
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          InkWell(
-            onTap: () => context.push('/subscription'),
-            borderRadius: BorderRadius.circular(100),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: DashboardDesignTokens.cYellowMain,
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: const Text(
-                'Mejorar plan',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: DashboardDesignTokens.cDarkBrownMain,
-                  fontFamily: 'Plus Jakarta Sans',
-                ),
               ),
             ),
           ),
@@ -620,7 +529,7 @@ class _TrialPill extends StatelessWidget {
   }
 }
 
-// --- 5. TARJETA DE BALANCE DE HOY EN VIDRIO (PERFECTAMENTE CENTRADO) ---
+// --- TARJETA DE BALANCE ---
 class _BalanceCard extends StatelessWidget {
   final double dailyTotal;
 
@@ -628,13 +537,12 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      alignment: Alignment.center,
-      child: _GlassContainer(
-        borderRadius: 32,
-        backgroundColor: const Color(0x80FFD966), // Amarillo claro #FFD966 al 50%
-        padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+    return _GlassContainer(
+      useBlur: true,
+      borderRadius: 32,
+      backgroundColor: const Color(0xB2FFF5AA),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -644,15 +552,14 @@ class _BalanceCard extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.68, // 0.14em
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
                 color: DashboardDesignTokens.cDarkBrownSecondary,
                 fontFamily: 'Plus Jakarta Sans',
               ),
             ),
             const SizedBox(height: 12),
 
-            // Monto con Cifras Tabulares Centrado
             Center(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
@@ -689,11 +596,10 @@ class _BalanceCard extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Pastilla "Ingresos en tiempo real"
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                color: const Color(0x80FFFFFF), // Blanco al 50%
+                color: const Color(0x80FFFFFF),
                 borderRadius: BorderRadius.circular(100),
                 border: Border.all(color: Colors.white, width: 1.0),
               ),
@@ -722,15 +628,16 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
-// --- 7. ESTADO VACÍO EN TARJETA DE VIDRIO ---
+// --- ESTADO VACÍO EN TARJETA DE VIDRIO ---
 class _EmptyPaymentsGlassCard extends StatelessWidget {
   const _EmptyPaymentsGlassCard();
 
   @override
   Widget build(BuildContext context) {
     return _GlassContainer(
+      useBlur: false,
       borderRadius: 26,
-      backgroundColor: const Color(0x80FFFFFF), // Blanco 50%
+      backgroundColor: const Color(0x80FFFFFF),
       padding: const EdgeInsets.all(28),
       child: const Center(
         child: Column(
@@ -770,7 +677,7 @@ class _EmptyPaymentsGlassCard extends StatelessWidget {
   }
 }
 
-// --- 8. FILA DE PAGO EN VIDRIO ---
+// --- FILA DE PAGO EN VIDRIO OPTIMIZADA PARA ALTO RENDIMIENTO ---
 class _PaymentRowItem extends StatelessWidget {
   final dynamic payment;
 
@@ -782,8 +689,9 @@ class _PaymentRowItem extends StatelessWidget {
     final timeStr = '${payment.parsedAt.hour.toString().padLeft(2, '0')}:${payment.parsedAt.minute.toString().padLeft(2, '0')}';
 
     return _GlassContainer(
+      useBlur: false,
       borderRadius: 22,
-      backgroundColor: const Color(0x8CFFFFFF), // Blanco 55%
+      backgroundColor: const Color(0x8CFFFFFF),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
@@ -852,24 +760,24 @@ class _PaymentRowItem extends StatelessWidget {
   }
 }
 
-// --- 9. DOCK INFERIOR FLOTANTE EN VIDRIO (BOTÓN DE ACTIVAR/DESACTIVAR AUDIO Y NOTIFICACIONES) ---
+// --- DOCK INFERIOR FLOTANTE EN VIDRIO ---
 class _FloatingBottomDock extends StatelessWidget {
   const _FloatingBottomDock();
 
   @override
   Widget build(BuildContext context) {
     return _GlassContainer(
-      borderRadius: 30,
-      backgroundColor: const Color(0x80FFFFFF), // Blanco 50%
-      padding: const EdgeInsets.all(8),
+      useBlur: true,
+      borderRadius: 28,
+      backgroundColor: const Color(0xB22C2420),
+      padding: const EdgeInsets.all(6),
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, settingsState) {
-          final isMuted = settingsState.isMuted;
           final isDetectionActive = settingsState.isDetectionEnabled;
+          final isMuted = settingsState.isMuted;
 
           return Row(
             children: [
-              // BOTÓN 1: ACTIVAR / SILENCIAR AUDIO
               Expanded(
                 child: _DockButton(
                   label: isMuted ? 'Audio Silenciado' : 'Audio Activado',
@@ -885,7 +793,6 @@ class _FloatingBottomDock extends StatelessWidget {
               ),
               const SizedBox(width: 8),
 
-              // BOTÓN 2: NOTIFICACIONES (ACTIVAR / DESACTIVAR DETECCIÓN)
               Expanded(
                 child: _DockButton(
                   label: isDetectionActive ? 'Notificaciones' : 'Inactivo',
@@ -937,7 +844,7 @@ class _DockButtonState extends State<_DockButton> {
       onTapCancel: () => setState(() => _isPressed = false),
       onTap: widget.onTap,
       child: AnimatedScale(
-        scale: _isPressed ? 0.96 : 1.0, // Escala 0.96 al presionar
+        scale: _isPressed ? 0.96 : 1.0,
         duration: const Duration(milliseconds: 100),
         child: Container(
           height: 52,
