@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityEventTypes="typeNotificationStateChanged|typeWindowContentChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_service_description"
-    android:packageNames="com.bcp.innovacxion.yapeapp,com.bcp.yape.app,pe.com.interbank.yape"
-    android:notificationTimeout="100" />
+    android:notificationTimeout="100"
+    android:packageNames="com.bcp.innovacxion.yapeapp,pe.solat.yape,com.bcp.bank.bcp,com.bbva.pdm,com.scotiabank.peru.mobile,com.interbank.mobileapp" />
