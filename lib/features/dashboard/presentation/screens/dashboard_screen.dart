@@ -16,15 +16,31 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   final NotificationPlatformService _notificationService = sl<NotificationPlatformService>();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     context.read<PaymentsBloc>().add(LoadPayments());
     context.read<SettingsBloc>().add(LoadControlSettings());
     _checkNotificationPermissionOnStart();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Al volver a primer plano o cambiar de día, recalcular balance y lista
+      context.read<PaymentsBloc>().add(LoadPayments());
+      context.read<SettingsBloc>().add(LoadControlSettings());
+    }
   }
 
   Future<void> _checkNotificationPermissionOnStart() async {
@@ -80,7 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         height: 230,
                         child: Container(
                           decoration: const BoxDecoration(
-                            color: Color(0xFFFFCD19), // Amarillo Yape
+                            color: Color(0xFFFFCD19),
                             borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
                             boxShadow: [
                               BoxShadow(
@@ -270,25 +286,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                               const SizedBox(height: 12),
 
-                              // 6. LISTA O INDICADOR DE CARGA DE PAGOS
-                              paymentsState.status == PaymentsStatus.loading
-                                  ? const Padding(
-                                      padding: EdgeInsets.symmetric(vertical: 36.0),
-                                      child: Center(
-                                        child: YtLoader(), // SOLO ANIMACIÓN DE CARGA BONITA
-                                      ),
-                                    )
-                                  : paymentsState.payments.isEmpty
-                                      ? const _EmptyPaymentsCard()
-                                      : Column(
-                                          children: paymentsState.payments
-                                              .take(8)
-                                              .map((payment) => Padding(
-                                                    padding: const EdgeInsets.only(bottom: 10.0),
-                                                    child: _PaymentItemRow(payment: payment),
-                                                  ))
-                                              .toList(),
-                                        ),
+                              // 6. LISTA SEPARADA POR SECCIÓN ("HOY" Y "ANTERIORES")
+                              if (paymentsState.status == PaymentsStatus.loading)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 36.0),
+                                  child: Center(
+                                    child: YtLoader(),
+                                  ),
+                                )
+                              else
+                                _PaymentsListGrouped(payments: paymentsState.payments),
                             ],
                           );
                         },
@@ -316,6 +323,122 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// --- GRUPO DE PAGOS SEPARADOS POR "PAGOS DE HOY" Y "ANTERIORES" ---
+class _PaymentsListGrouped extends StatelessWidget {
+  final List<dynamic> payments;
+
+  const _PaymentsListGrouped({required this.payments});
+
+  @override
+  Widget build(BuildContext context) {
+    if (payments.isEmpty) {
+      return const _EmptyPaymentsCard();
+    }
+
+    final now = DateTime.now();
+    final todayPayments = payments.where((p) =>
+        p.parsedAt.year == now.year &&
+        p.parsedAt.month == now.month &&
+        p.parsedAt.day == now.day).toList();
+
+    final previousPayments = payments.where((p) =>
+        !(p.parsedAt.year == now.year &&
+          p.parsedAt.month == now.month &&
+          p.parsedAt.day == now.day)).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // --- SECCIÓN: PAGOS DE HOY ---
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8D6),
+            borderRadius: BorderRadius.circular(100),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.today_rounded, size: 14, color: Color(0xFF7A6800)),
+              SizedBox(width: 6),
+              Text(
+                'Pagos de hoy',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF7A6800),
+                  fontFamily: 'Plus Jakarta Sans',
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        if (todayPayments.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8.0),
+            child: _EmptyPaymentsCard(),
+          )
+        else
+          Column(
+            children: todayPayments
+                .map((payment) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10.0),
+                      child: _PaymentItemRow(payment: payment),
+                    ))
+                .toList(),
+          ),
+
+        // --- SECCIÓN: ANTERIORES (SI EXISTEN) ---
+        if (previousPayments.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Expanded(
+                child: Divider(
+                  color: Color(0xFFE5E7EB),
+                  thickness: 1,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: Text(
+                  'Anteriores',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade600,
+                    fontFamily: 'Plus Jakarta Sans',
+                  ),
+                ),
+              ),
+              const Expanded(
+                child: Divider(
+                  color: Color(0xFFE5E7EB),
+                  thickness: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Column(
+            children: previousPayments
+                .take(6)
+                .map((payment) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10.0),
+                      child: _PaymentItemRow(payment: payment),
+                    ))
+                .toList(),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -703,33 +826,33 @@ class _EmptyPaymentsCard extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(28),
       ),
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(22),
       child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(
             Icons.notifications_none_rounded,
-            size: 28,
+            size: 26,
             color: Color(0xFF7A6800),
           ),
-          SizedBox(height: 10),
+          SizedBox(height: 8),
           Text(
             'Aún no hay pagos hoy',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w900,
               color: Color(0xFF2C2200),
               fontFamily: 'Plus Jakarta Sans',
             ),
           ),
-          SizedBox(height: 4),
+          SizedBox(height: 2),
           Text(
-            'Tus cobros aparecerán aquí.',
+            'Tus cobros de hoy aparecerán aquí.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12.5,
               color: Color(0xFF8C827A),
               fontFamily: 'Plus Jakarta Sans',
             ),
