@@ -16,16 +16,21 @@ class PaymentParser {
   ];
 
   static final List<RegExp> _incomingPaymentRegexes = [
+    // FORMATOS YAPE & GENERALES
     RegExp(r"Confirmaci[óo]n\s+de\s+Pago\s+(?:Yape!?\s*)?(.+?)\s*[-–]?\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     RegExp(r"Te\s+yapeó\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+(.+)", caseSensitive: false),
     RegExp(r"(.+?)\s+te\s+yapeó\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     RegExp(r"¡?Te\s+yapearon!?\s+(.+?)\s*[-–]\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
-    RegExp(r"(.+?)\s+te\s+envió\s+un\s+pago\s+por\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
+    RegExp(r"(?:Confirmaci[óo]n\s+)?(.+?)\s+te\s+envi[óo]\s+(?:un\s+pago\s+)?(?:por|de)\s*(?:S/|PEN|S\./)?\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
+    RegExp(r"(?:Confirmaci[óo]n\s+)?(.+?)\s+te\s+envi[óo]\s+(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     RegExp(r"¡?Recibiste\s+un\s+Yape!?\s+(.+?)\s+te\s+envió\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     RegExp(r"Nuevo\s+pago\s+de\s+(.+?)\s+por\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     RegExp(r"Has\s+recibido\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+de\s+(.+)", caseSensitive: false),
     RegExp(r"Recibiste\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+de\s+(.+)", caseSensitive: false),
     RegExp(r"^(.+?)\s*[-–]\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)$", caseSensitive: false),
+
+    // FORMATOS MI BANCO & CAJAS
+    RegExp(r"Mi\s*Banco:?\s*(?:Confirmaci[óo]n\s+)?(.+?)\s+te\s+envi[óo]\s+(?:un\s+pago\s+)?(?:por|de)?\s*(?:S/|PEN|S\./)?\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
 
     // FORMATOS PLIN
     RegExp(r"(?:Recibiste\s+un\s+Plin!?)\s+(.+?)\s+te\s+envió\s+(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
@@ -115,18 +120,18 @@ class PaymentParser {
     // 1. Quitar todos los asteriscos, numerales y símbolos especiales
     cleaned = cleaned.replaceAll(RegExp(r'[*＊#_~^•·¡!]+'), ' ');
 
-    // 2. Quitar prefijos comunes de Yape/Plin y frases de sistema
+    // 2. Quitar prefijos comunes de Yape/Plin/MiBanco y frases de sistema
     cleaned = cleaned.replaceAll(
-      RegExp(r"^(?:Confirmaci[óo]n(?:\s+de)?(?:\s+Pago)?(?:\s+Yape!?)?|Yape:?|Plin:?|¡?Te\s+yapearon!?|¡?Recibiste\s+un\s+(?:Yape|Plin)!?)\s*", caseSensitive: false),
+      RegExp(r"^(?:Confirmaci[óo]n(?:\s+de)?(?:\s+Pago)?(?:\s+Yape!?)?|Mi\s*Banco:?|Yape:?|Plin:?|¡?Te\s+yapearon!?|¡?Recibiste\s+un\s+(?:Yape|Plin)!?)\s*", caseSensitive: false),
       "",
     );
 
-    // 3. Limpieza adicional de "Confirmación de Pago" o "Yape!" si persisten
+    // 3. Limpieza adicional de "Confirmación" si persiste al inicio del nombre
     cleaned = cleaned
-        .replaceAll(RegExp(r"^Confirmaci[óo]n\s+de\s+(?:Pago\s+)?(?:Yape!?)?\s*", caseSensitive: false), "")
+        .replaceAll(RegExp(r"^Confirmaci[óo]n\s+(?:de\s+)?(?:Pago\s+)?(?:Yape!?)?\s*", caseSensitive: false), "")
         .replaceAll(RegExp(r"^Yape!|\bYape!\b", caseSensitive: false), "");
 
-    // 4. Eliminar cualquier símbolo no alfanumérico sobrante al inicio o final (evita "asterisco" en TTS)
+    // 4. Eliminar cualquier símbolo no alfanumérico sobrante al inicio o final
     cleaned = cleaned.replaceAll(RegExp(r"^[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+"), "");
     cleaned = cleaned.replaceAll(RegExp(r"[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+$"), "");
 

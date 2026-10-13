@@ -72,7 +72,7 @@ class YapeNotificationListenerService : NotificationListenerService() {
         val notification = notificationBuilder.setOngoing(true)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("SonoPay Activo")
-            .setContentText("Detectando pagos de Yape y Plin en segundo plano...")
+            .setContentText("Detectando pagos de Yape, Plin y Mi Banco en segundo plano...")
             .setCategory(Notification.CATEGORY_SERVICE)
             .build()
 
@@ -89,14 +89,17 @@ class YapeNotificationListenerService : NotificationListenerService() {
         
         val isYape = packageName.contains("yape", ignoreCase = true)
         val isBcp = packageName.contains("bcp", ignoreCase = true)
+        val isMiBanco = packageName.contains("mibanco", ignoreCase = true) || packageName.contains("mi.banco", ignoreCase = true)
         val isPlin = packageName.contains("bbva", ignoreCase = true) || 
                      packageName.contains("scotiabank", ignoreCase = true) ||
                      packageName.contains("interbank", ignoreCase = true) ||
                      packageName.contains("banbif", ignoreCase = true) ||
                      packageName.contains("pichincha", ignoreCase = true) ||
-                     packageName.contains("plin", ignoreCase = true)
+                     packageName.contains("plin", ignoreCase = true) ||
+                     packageName.contains("caja", ignoreCase = true) ||
+                     packageName.contains("cmac", ignoreCase = true)
 
-        if (!isYape && !isBcp && !isPlin) return
+        if (!isYape && !isBcp && !isMiBanco && !isPlin) return
 
         val extras: Bundle = sbnNonNull.notification.extras
         val title = extras.get("android.title")?.toString() ?: ""
@@ -119,7 +122,7 @@ class YapeNotificationListenerService : NotificationListenerService() {
             "rawBody" to rawBody
         )
 
-        // 1. Enviar a Flutter para que Flutter Dart procese el pago y hable por TTS una sola vez
+        // 1. Enviar a Flutter para que Flutter Dart procese el pago en vivo
         Handler(Looper.getMainLooper()).post { 
             try { 
                 eventSink?.success(data) 
@@ -128,12 +131,15 @@ class YapeNotificationListenerService : NotificationListenerService() {
             } 
         }
 
-        // 2. Guardar en cola nativa de SharedPreferences para sincronización de fondo
-        val parsed = parseNativePayment(title, rawBody)
-        if (parsed != null) {
-            val senderName = parsed.first.replace("*", "").replace("#", "").trim()
-            val amount = parsed.second
-            savePendingPaymentToPrefs(senderName, amount, "$title $rawBody")
+        // 2. Guardar en cola nativa de SharedPreferences SOLO cuando Flutter NO está en primer plano (eventSink == null)
+        // Esto evita que pagos procesados en tiempo real se registren como duplicados al reiniciar el celular
+        if (eventSink == null) {
+            val parsed = parseNativePayment(title, rawBody)
+            if (parsed != null) {
+                val senderName = parsed.first.replace("*", "").replace("#", "").trim()
+                val amount = parsed.second
+                savePendingPaymentToPrefs(senderName, amount, "$title $rawBody")
+            }
         }
     }
 
@@ -167,7 +173,7 @@ class YapeNotificationListenerService : NotificationListenerService() {
             Pattern.compile("Te\\s+yapeó\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)\\s+(.+)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(.+?)\\s+te\\s+yapeó\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("¡?Te\\s+yapearon!?\\s+(.+?)\\s*[-–]\\s*(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(.+?)\\s+te\\s+envió\\s+un\\s+pago\\s+por\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?:Confirmaci[óo]n\\s+)?(.+?)\\s+te\\s+envi[óo]\\s+(?:un\\s+pago\\s+)?(?:por|de)\\s*(?:S/|PEN|S\\./)?\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(?:Has\\s+recibido|Recibiste)\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)\\s+de\\s+(.+)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(.+?)\\s*[-–]\\s*(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)$", Pattern.CASE_INSENSITIVE)
         )
@@ -189,13 +195,13 @@ class YapeNotificationListenerService : NotificationListenerService() {
 
                     if (amount != null && amount > 0 && name.isNotEmpty()) {
                         name = name
-                            .replace(Regex("(?i)^(?:Confirmaci[óo]n(?:\\s+de)?(?:\\s+Pago)?(?:\\s+Yape!?)?|Yape:?|Plin:?|¡?Te\\s+yapearon!?|¡?Recibiste\\s+un\\s+(?:Yape|Plin)!?)\\s*"), "")
-                            .replace(Regex("(?i)^Confirmaci[óo]n\\s+de\\s+(?:Pago\\s+)?(?:Yape!?)?\\s*"), "")
+                            .replace(Regex("(?i)^(?:Confirmaci[óo]n(?:\\s+de)?(?:\\s+Pago)?(?:\\s+Yape!?)?|Mi\\s*Banco:?|Yape:?|Plin:?|¡?Te\\s+yapearon!?|¡?Recibiste\\s+un\\s+(?:Yape|Plin)!?)\\s*"), "")
+                            .replace(Regex("(?i)^Confirmaci[óo]n\\s+(?:de\\s+)?(?:Pago\\s+)?(?:Yape!?)?\\s*"), "")
                             .replace(Regex("(?i)^Yape!|\\bYape!\\b"), "")
                             .replace(Regex("[*＊#_~^•·¡!]+"), " ")
                             .replace(Regex("[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+$"), "")
                             .trim()
-                        if (name.isEmpty()) name = "Cliente Yape"
+                        if (name.isEmpty()) name = "Cliente"
                         return Pair(name, amount)
                     }
                 } catch (_: Exception) {}
