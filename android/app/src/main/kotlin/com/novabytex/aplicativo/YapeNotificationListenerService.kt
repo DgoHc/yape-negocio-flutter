@@ -14,11 +14,13 @@ import android.content.Context
 import android.os.Build
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import java.util.regex.Pattern
 import org.json.JSONArray
 import org.json.JSONObject
 
-class YapeNotificationListenerService : NotificationListenerService() {
+class YapeNotificationListenerService : NotificationListenerService(), TextToSpeech.OnInitListener {
     companion object {
         const val EVENT_CHANNEL = "pe.yape.transporte/notifications"
         var eventSink: EventChannel.EventSink? = null
@@ -26,6 +28,31 @@ class YapeNotificationListenerService : NotificationListenerService() {
         private const val NOTIFICATION_ID = 888
         const val PREFS_NAME = "sonopay_native_prefs"
         const val KEY_PENDING_PAYMENTS = "pending_payments_json"
+    }
+
+    private var tts: TextToSpeech? = null
+    private var isTtsReady = false
+
+    override fun onCreate() {
+        super.onCreate()
+        try {
+            tts = TextToSpeech(applicationContext, this)
+        } catch (e: Exception) {
+            Log.e("SonoPayService", "Error initializing native TTS", e)
+        }
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            val result = tts?.setLanguage(Locale("es", "PE"))
+            if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
+                isTtsReady = true
+                Log.d("SonoPayService", "Native TTS ready for es-PE")
+            } else {
+                tts?.setLanguage(Locale("es", "ES"))
+                isTtsReady = true
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -113,6 +140,21 @@ class YapeNotificationListenerService : NotificationListenerService() {
             .maxByOrNull { it.length } ?: ""
 
         val rawBody = if (fullContent.isNotEmpty()) fullContent else title
+        val lowerText = "$title $rawBody".lowercase()
+
+        // IGNORAR PAGOS SALIENTES (PAGOS ENVIADOS POR EL MISMO USUARIO)
+        val outgoingKeywords = listOf(
+            "enviaste", "yapeaste", "pago enviado", "transferencia realizada",
+            "transferencia exitosa", "comprobante de pago", "le enviaste",
+            "has enviado", "pago realizado", "pago exitoso a", "yapeó a"
+        )
+
+        for (keyword in outgoingKeywords) {
+            if (lowerText.contains(keyword)) {
+                Log.d("SonoPayService", "Ignorando notificación de pago saliente: $title $rawBody")
+                return
+            }
+        }
 
         Log.d("SonoPayService", "Notification Captured: pkg=$packageName | title=$title | rawBody=$rawBody")
 
@@ -122,7 +164,7 @@ class YapeNotificationListenerService : NotificationListenerService() {
             "rawBody" to rawBody
         )
 
-        // 1. Enviar a Flutter para que Flutter Dart procese el pago en vivo
+        // 1. Si Flutter está abierto en primer plano, enviar evento para procesar por Flutter Dart
         Handler(Looper.getMainLooper()).post { 
             try { 
                 eventSink?.success(data) 
@@ -131,15 +173,32 @@ class YapeNotificationListenerService : NotificationListenerService() {
             } 
         }
 
-        // 2. Guardar en cola nativa de SharedPreferences SOLO cuando Flutter NO está en primer plano (eventSink == null)
-        // Esto evita que pagos procesados en tiempo real se registren como duplicados al reiniciar el celular
+        // 2. Si Flutter está CERRADO o ELIMINADO de aplicaciones recientes (eventSink == null),
+        // la voz nativa en Kotlin debe sonar INMEDIATAMENTE en segundo plano.
         if (eventSink == null) {
             val parsed = parseNativePayment(title, rawBody)
             if (parsed != null) {
                 val senderName = parsed.first.replace("*", "").replace("#", "").trim()
                 val amount = parsed.second
+
+                speakNative("$senderName envió $amount soles")
                 savePendingPaymentToPrefs(senderName, amount, "$title $rawBody")
             }
+        }
+    }
+
+    private fun speakNative(text: String) {
+        try {
+            if (isTtsReady && tts != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "sonopay_native_tts")
+                } else {
+                    @Suppress("DEPRECATION")
+                    tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SonoPayService", "Error in speakNative", e)
         }
     }
 
@@ -208,5 +267,13 @@ class YapeNotificationListenerService : NotificationListenerService() {
             }
         }
         return null
+    }
+
+    override fun onDestroy() {
+        try {
+            tts?.stop()
+            tts?.shutdown()
+        } catch (_: Exception) {}
+        super.onDestroy()
     }
 }

@@ -15,6 +15,21 @@ class PaymentParser {
     "intento de inicio",
   ];
 
+  static final List<String> _outgoingKeywords = [
+    "enviaste",
+    "yapeaste",
+    "pago enviado",
+    "transferencia realizada",
+    "transferencia exitosa",
+    "comprobante de pago",
+    "le enviaste",
+    "has enviado",
+    "pago realizado",
+    "pago exitoso a",
+    "yapeó a",
+    "enviado:",
+  ];
+
   static final List<RegExp> _incomingPaymentRegexes = [
     // FORMATOS YAPE & GENERALES
     RegExp(r"Confirmaci[óo]n\s+de\s+Pago\s+(?:Yape!?\s*)?(.+?)\s*[-–]?\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
@@ -44,6 +59,23 @@ class PaymentParser {
     
     if (raw.isEmpty) {
       return const Left(ServerFailure('Texto vacío'));
+    }
+
+    final lowerRaw = raw.toLowerCase();
+
+    // 1. FILTRAR NOTIFICACIONES DE PAGOS SALIENTES (CUANDO EL USUARIO ENVÍA DINERO)
+    for (final word in _outgoingKeywords) {
+      if (lowerRaw.contains(word)) {
+        AppLogger.w('PaymentParser: Ignorando notificación de pago saliente: "$raw"');
+        return const Left(ServerFailure('Pago saliente ignorado'));
+      }
+    }
+
+    // 2. FILTRAR MENSAJES DE SEGURIDAD
+    for (final word in _securityKeywords) {
+      if (lowerRaw.contains(word)) {
+        return const Left(ServerFailure('Seguridad ignorada'));
+      }
     }
 
     final cleanRaw = raw.replaceAll(RegExp(r'[\r\n|]+'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -84,15 +116,6 @@ class PaymentParser {
           }
         }
         if (senderName != null && amount != null && amount > 0) break;
-      }
-    }
-
-    if (senderName == null || amount == null || amount <= 0) {
-      final lowerRaw = raw.toLowerCase();
-      for (final word in _securityKeywords) {
-        if (lowerRaw.contains(word)) {
-          return const Left(ServerFailure('Seguridad ignorada'));
-        }
       }
     }
 

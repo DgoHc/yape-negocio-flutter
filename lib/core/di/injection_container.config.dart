@@ -79,6 +79,8 @@ import '../../features/auth/domain/usecases/check_auth_status_use_case.dart'
     as _i489;
 import '../../features/auth/domain/usecases/check_device_status_use_case.dart'
     as _i1063;
+import '../../features/auth/domain/usecases/forgot_password_use_case.dart'
+    as _i18;
 import '../../features/auth/domain/usecases/get_device_id_use_case.dart'
     as _i750;
 import '../../features/auth/domain/usecases/login_admin_use_case.dart' as _i761;
@@ -88,13 +90,11 @@ import '../../features/auth/domain/usecases/register_device_use_case.dart'
     as _i100;
 import '../../features/auth/domain/usecases/register_user_use_case.dart'
     as _i468;
+import '../../features/auth/domain/usecases/reset_password_use_case.dart'
+    as _i825;
 import '../../features/auth/domain/usecases/start_trial_use_case.dart' as _i491;
 import '../../features/auth/domain/usecases/update_profile_use_case.dart'
     as _i659;
-import '../../features/auth/domain/usecases/forgot_password_use_case.dart'
-    as _i288;
-import '../../features/auth/domain/usecases/reset_password_use_case.dart'
-    as _i289;
 import '../../features/auth/presentation/bloc/auth_bloc.dart' as _i797;
 import '../../features/connectivity/presentation/bloc/connectivity_bloc.dart'
     as _i78;
@@ -159,9 +159,6 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i611.NotificationPlatformService(),
     );
     gh.lazySingleton<_i844.PaymentParser>(() => _i844.PaymentParser());
-    gh.factory<_i750.GetDeviceIdUseCase>(
-      () => _i750.GetDeviceIdUseCase(gh<_i335.DeviceInfoService>()),
-    );
     gh.lazySingleton<_i871.DbEncryptionService>(
       () => _i871.DbEncryptionService(gh<_i558.FlutterSecureStorage>()),
     );
@@ -171,8 +168,11 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i675.TokenManager>(
       () => _i675.TokenManager(gh<_i558.FlutterSecureStorage>()),
     );
-    gh.lazySingleton<_i78.ConnectivityBloc>(
-      () => _i78.ConnectivityBloc(gh<_i895.Connectivity>()),
+    gh.factory<_i750.GetDeviceIdUseCase>(
+      () => _i750.GetDeviceIdUseCase(gh<_i335.DeviceInfoService>()),
+    );
+    gh.lazySingleton<_i712.PaymentLocalDataSource>(
+      () => _i712.PaymentLocalDataSourceImpl(gh<_i723.AppDatabase>()),
     );
     gh.lazySingleton<_i290.ExportAdminDataUseCase>(
       () => _i290.ExportAdminDataUseCase(gh<_i26.ExportService>()),
@@ -195,43 +195,27 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i723.UserProfileDao>(
       () => registerModule.getUserProfileDao(gh<_i723.AppDatabase>()),
     );
+    gh.lazySingleton<_i78.ConnectivityBloc>(
+      () => _i78.ConnectivityBloc(gh<_i895.Connectivity>()),
+    );
+    gh.factory<_i373.RememberMeRepository>(
+      () => _i368.RememberMeRepositoryImpl(gh<_i460.SharedPreferences>()),
+    );
+    gh.lazySingleton<_i167.NetworkConfigService>(
+      () => registerModule.networkConfigService(gh<_i460.SharedPreferences>()),
+    );
     gh.factory<_i973.AuthLocalDataSource>(
       () => _i973.AuthLocalDataSourceImpl(
         gh<_i723.UserProfileDao>(),
         gh<_i723.DeviceDao>(),
       ),
     );
-    gh.lazySingleton<_i167.NetworkConfigService>(
-      () => registerModule.networkConfigService(gh<_i460.SharedPreferences>()),
-    );
-    gh.factory<_i373.RememberMeRepository>(
-      () => _i368.RememberMeRepositoryImpl(gh<_i460.SharedPreferences>()),
-    );
-    gh.lazySingleton<_i712.PaymentLocalDataSource>(
-      () => _i712.PaymentLocalDataSourceImpl(gh<_i723.AppDatabase>()),
-    );
     gh.factory<_i154.UserProfileRepository>(
       () => _i1058.UserProfileRepositoryImpl(gh<_i973.AuthLocalDataSource>()),
-    );
-    gh.factory<_i784.DeviceRepository>(
-      () => _i921.DeviceRepositoryImpl(gh<_i973.AuthLocalDataSource>()),
     );
     gh.lazySingleton<_i361.Dio>(
       () => registerModule.dio(
         gh<_i167.NetworkConfigService>(),
-        gh<_i675.TokenManager>(),
-      ),
-    );
-    gh.factory<_i489.CheckAuthStatusUseCase>(
-      () => _i489.CheckAuthStatusUseCase(
-        gh<_i675.TokenManager>(),
-        gh<_i154.UserProfileRepository>(),
-        gh<_i750.GetDeviceIdUseCase>(),
-      ),
-    );
-    gh.factory<_i660.AdminRemoteDataSource>(
-      () => _i660.AdminRemoteDataSourceImpl(
-        gh<_i361.Dio>(),
         gh<_i675.TokenManager>(),
       ),
     );
@@ -244,33 +228,36 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i460.SharedPreferences>(),
       ),
     );
-    gh.factory<_i953.NotificationRemoteDataSource>(
-      () => _i953.NotificationRemoteDataSourceImpl(gh<_i361.Dio>()),
-    );
-    gh.lazySingleton<_i943.PaymentRemoteDataSource>(
-      () => _i943.PaymentRemoteDataSourceImpl(gh<_i361.Dio>()),
-    );
-    gh.factory<_i544.PaymentGatewayRepository>(
-      () => _i88.PaymentGatewayRepositoryImpl(gh<_i361.Dio>()),
+    gh.factory<_i660.AdminRemoteDataSource>(
+      () => _i660.AdminRemoteDataSourceImpl(
+        gh<_i361.Dio>(),
+        gh<_i675.TokenManager>(),
+      ),
     );
     gh.factory<_i583.AdminRepository>(
       () => _i335.AdminRepositoryImpl(gh<_i660.AdminRemoteDataSource>()),
     );
+    gh.factory<_i544.PaymentGatewayRepository>(
+      () => _i88.PaymentGatewayRepositoryImpl(gh<_i361.Dio>()),
+    );
+    gh.lazySingleton<_i943.PaymentRemoteDataSource>(
+      () => _i943.PaymentRemoteDataSourceImpl(gh<_i361.Dio>()),
+    );
+    gh.factory<_i784.DeviceRepository>(
+      () => _i921.DeviceRepositoryImpl(gh<_i973.AuthLocalDataSource>()),
+    );
+    gh.factory<_i489.CheckAuthStatusUseCase>(
+      () => _i489.CheckAuthStatusUseCase(
+        gh<_i675.TokenManager>(),
+        gh<_i154.UserProfileRepository>(),
+        gh<_i750.GetDeviceIdUseCase>(),
+      ),
+    );
     gh.factory<_i203.AuthRemoteDataSource>(
       () => _i203.AuthRemoteDataSourceImpl(gh<_i361.Dio>()),
     );
-    gh.lazySingleton<_i787.AuthRepository>(
-      () => _i153.AuthRepositoryImpl(
-        gh<_i203.AuthRemoteDataSource>(),
-        gh<_i675.TokenManager>(),
-        gh<_i361.Dio>(),
-      ),
-    );
-    gh.factory<_i506.ApproveDeviceUseCase>(
-      () => _i506.ApproveDeviceUseCase(
-        gh<_i787.AuthRepository>(),
-        gh<_i335.DeviceInfoService>(),
-      ),
+    gh.factory<_i953.NotificationRemoteDataSource>(
+      () => _i953.NotificationRemoteDataSourceImpl(gh<_i361.Dio>()),
     );
     gh.factory<_i843.UserAuthRepository>(
       () => _i843.UserAuthRepositoryImpl(
@@ -278,11 +265,20 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i675.TokenManager>(),
       ),
     );
-    gh.factory<_i288.ForgotPasswordUseCase>(
-      () => _i288.ForgotPasswordUseCase(gh<_i843.UserAuthRepository>()),
-    );
-    gh.factory<_i289.ResetPasswordUseCase>(
-      () => _i289.ResetPasswordUseCase(gh<_i843.UserAuthRepository>()),
+    gh.lazySingleton<_i315.PaymentRepository>(
+      () => _i842.PaymentRepositoryImpl(
+        gh<_i943.PaymentRemoteDataSource>(),
+        gh<_i712.PaymentLocalDataSource>(),
+        gh<_i78.ConnectivityBloc>(),
+        gh<_i611.NotificationPlatformService>(),
+        gh<_i27.TtsService>(),
+        gh<_i723.PaymentDao>(),
+        gh<_i723.SecondaryNumberDao>(),
+        gh<_i723.SyncDao>(),
+        gh<_i723.UserProfileDao>(),
+        gh<_i460.SharedPreferences>(),
+        gh<_i335.DeviceInfoService>(),
+      ),
     );
     gh.lazySingleton<_i298.CreateUserUseCase>(
       () => _i298.CreateUserUseCase(gh<_i583.AdminRepository>()),
@@ -316,31 +312,19 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i614.UpdateUserUseCase>(
       () => _i614.UpdateUserUseCase(gh<_i583.AdminRepository>()),
     );
-    gh.factory<_i711.LogoutUseCase>(
-      () => _i711.LogoutUseCase(
+    gh.factory<_i511.PaymentsBloc>(
+      () => _i511.PaymentsBloc(
+        gh<_i315.PaymentRepository>(),
+        gh<_i27.TtsService>(),
+        gh<_i460.SharedPreferences>(),
+      ),
+    );
+    gh.lazySingleton<_i787.AuthRepository>(
+      () => _i153.AuthRepositoryImpl(
+        gh<_i203.AuthRemoteDataSource>(),
         gh<_i675.TokenManager>(),
-        gh<_i787.AuthRepository>(),
-        gh<_i784.DeviceRepository>(),
-        gh<_i335.DeviceInfoService>(),
-        gh<_i723.AppDatabase>(),
+        gh<_i361.Dio>(),
       ),
-    );
-    gh.factory<_i367.NotificationRepository>(
-      () => _i361.NotificationRepositoryImpl(
-        gh<_i953.NotificationRemoteDataSource>(),
-      ),
-    );
-    gh.factory<_i2.LoginUserUseCase>(
-      () => _i2.LoginUserUseCase(gh<_i843.UserAuthRepository>()),
-    );
-    gh.factory<_i468.RegisterUserUseCase>(
-      () => _i468.RegisterUserUseCase(gh<_i843.UserAuthRepository>()),
-    );
-    gh.factory<_i491.StartTrialUseCase>(
-      () => _i491.StartTrialUseCase(gh<_i843.UserAuthRepository>()),
-    );
-    gh.factory<_i659.UpdateProfileUseCase>(
-      () => _i659.UpdateProfileUseCase(gh<_i843.UserAuthRepository>()),
     );
     gh.factory<_i55.AdminBloc>(
       () => _i55.AdminBloc(
@@ -358,20 +342,37 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i583.AdminRepository>(),
       ),
     );
-    gh.lazySingleton<_i315.PaymentRepository>(
-      () => _i842.PaymentRepositoryImpl(
-        gh<_i943.PaymentRemoteDataSource>(),
-        gh<_i712.PaymentLocalDataSource>(),
-        gh<_i78.ConnectivityBloc>(),
-        gh<_i611.NotificationPlatformService>(),
-        gh<_i27.TtsService>(),
-        gh<_i723.PaymentDao>(),
-        gh<_i723.SecondaryNumberDao>(),
-        gh<_i723.SyncDao>(),
-        gh<_i723.UserProfileDao>(),
-        gh<_i460.SharedPreferences>(),
-        gh<_i335.DeviceInfoService>(),
+    gh.factory<_i813.ActivateSubscriptionUseCase>(
+      () => _i813.ActivateSubscriptionUseCase(
+        gh<_i843.UserAuthRepository>(),
+        gh<_i154.UserProfileRepository>(),
       ),
+    );
+    gh.factory<_i367.NotificationRepository>(
+      () => _i361.NotificationRepositoryImpl(
+        gh<_i953.NotificationRemoteDataSource>(),
+      ),
+    );
+    gh.factory<_i876.NotificationBloc>(
+      () => _i876.NotificationBloc(gh<_i367.NotificationRepository>()),
+    );
+    gh.factory<_i18.ForgotPasswordUseCase>(
+      () => _i18.ForgotPasswordUseCase(gh<_i843.UserAuthRepository>()),
+    );
+    gh.factory<_i2.LoginUserUseCase>(
+      () => _i2.LoginUserUseCase(gh<_i843.UserAuthRepository>()),
+    );
+    gh.factory<_i468.RegisterUserUseCase>(
+      () => _i468.RegisterUserUseCase(gh<_i843.UserAuthRepository>()),
+    );
+    gh.factory<_i825.ResetPasswordUseCase>(
+      () => _i825.ResetPasswordUseCase(gh<_i843.UserAuthRepository>()),
+    );
+    gh.factory<_i491.StartTrialUseCase>(
+      () => _i491.StartTrialUseCase(gh<_i843.UserAuthRepository>()),
+    );
+    gh.factory<_i659.UpdateProfileUseCase>(
+      () => _i659.UpdateProfileUseCase(gh<_i843.UserAuthRepository>()),
     );
     gh.lazySingleton<_i1063.CheckDeviceStatusUseCase>(
       () => _i1063.CheckDeviceStatusUseCase(gh<_i787.AuthRepository>()),
@@ -382,21 +383,19 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i100.RegisterDeviceUseCase>(
       () => _i100.RegisterDeviceUseCase(gh<_i787.AuthRepository>()),
     );
-    gh.factory<_i511.PaymentsBloc>(
-      () => _i511.PaymentsBloc(
-        gh<_i315.PaymentRepository>(),
-        gh<_i997.ExportPaymentsUseCase>(),
-        gh<_i27.TtsService>(),
-        gh<_i460.SharedPreferences>(),
+    gh.factory<_i711.LogoutUseCase>(
+      () => _i711.LogoutUseCase(
+        gh<_i675.TokenManager>(),
+        gh<_i787.AuthRepository>(),
+        gh<_i784.DeviceRepository>(),
+        gh<_i335.DeviceInfoService>(),
+        gh<_i723.AppDatabase>(),
       ),
     );
-    gh.factory<_i876.NotificationBloc>(
-      () => _i876.NotificationBloc(gh<_i367.NotificationRepository>()),
-    );
-    gh.factory<_i813.ActivateSubscriptionUseCase>(
-      () => _i813.ActivateSubscriptionUseCase(
-        gh<_i843.UserAuthRepository>(),
-        gh<_i154.UserProfileRepository>(),
+    gh.factory<_i506.ApproveDeviceUseCase>(
+      () => _i506.ApproveDeviceUseCase(
+        gh<_i787.AuthRepository>(),
+        gh<_i335.DeviceInfoService>(),
       ),
     );
     gh.lazySingleton<_i846.SyncEngine>(
@@ -419,8 +418,8 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i506.ApproveDeviceUseCase>(),
         gh<_i750.GetDeviceIdUseCase>(),
         gh<_i659.UpdateProfileUseCase>(),
-        gh<_i288.ForgotPasswordUseCase>(),
-        gh<_i289.ResetPasswordUseCase>(),
+        gh<_i18.ForgotPasswordUseCase>(),
+        gh<_i825.ResetPasswordUseCase>(),
         gh<_i154.UserProfileRepository>(),
         gh<_i373.RememberMeRepository>(),
         gh<_i947.GoogleAuthService>(),

@@ -285,6 +285,16 @@ class PaymentRepositoryImpl implements PaymentRepository {
   }
 
   @override
+  Future<Either<Failure, void>> deleteAllPayments() async {
+    try {
+      await paymentDao.deleteAllPayments();
+      return const Right(null);
+    } catch (e) {
+      return Left(DatabaseFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> syncPayments() async {
     try {
       final pending = await syncDao.getPendingSyncs();

@@ -7,6 +7,7 @@ abstract class PaymentRepository {
   Future<Either<Failure, void>> savePayment(PaymentData payment);
   Future<Either<Failure, void>> syncPayments();
   Future<Either<Failure, void>> clearOldPayments(int days);
+  Future<Either<Failure, void>> deleteAllPayments();
   Stream<PaymentData> get onPaymentReceived;
   Stream<String> get onRawNotificationReceived;
 }

@@ -35,7 +35,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
             onPressed: () {
-              context.read<PaymentsBloc>().add(ClearOldPayments());
+              context.read<PaymentsBloc>().add(ClearAllPaymentsRequested());
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Historial local de pagos eliminado.')),
@@ -109,112 +109,73 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           final filteredPayments = _selectedDateRange == null
               ? state.payments
               : state.payments.where((p) {
-                  final start = DateTime(
-                      _selectedDateRange!.start.year,
-                      _selectedDateRange!.start.month,
-                      _selectedDateRange!.start.day,
-                      0,
-                      0,
-                      0);
-                  final end = DateTime(
-                      _selectedDateRange!.end.year,
-                      _selectedDateRange!.end.month,
-                      _selectedDateRange!.end.day,
-                      23,
-                      59,
-                      59);
-                  return p.parsedAt.isAfter(start.subtract(const Duration(seconds: 1))) &&
-                      p.parsedAt.isBefore(end.add(const Duration(seconds: 1)));
+                  final pDate = DateTime(p.parsedAt.year, p.parsedAt.month, p.parsedAt.day);
+                  final startDate = DateTime(
+                    _selectedDateRange!.start.year,
+                    _selectedDateRange!.start.month,
+                    _selectedDateRange!.start.day,
+                  );
+                  final endDate = DateTime(
+                    _selectedDateRange!.end.year,
+                    _selectedDateRange!.end.month,
+                    _selectedDateRange!.end.day,
+                  );
+                  return (pDate.isAfter(startDate) || pDate.isAtSameMomentAs(startDate)) &&
+                      (pDate.isBefore(endDate) || pDate.isAtSameMomentAs(endDate));
                 }).toList();
 
-          double totalAmount = filteredPayments.fold(0.0, (sum, item) => sum + item.amount);
+          if (filteredPayments.isEmpty) {
+            return const Center(
+              child: Text(
+                'No se encontraron pagos.',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            );
+          }
+
+          final totalFiltered = filteredPayments.fold(0.0, (sum, p) => sum + p.amount);
 
           return Column(
             children: [
-              // BARRAS DE RESUMEN Y FILTRO
-              Padding(
+              // BANNER DE RESUMEN DEL FILTRO
+              Container(
+                width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: SoftCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _selectedDateRange == null
-                                ? 'Mostrando Todo el Historial'
-                                : 'Rango: ${_selectedDateRange!.start.day}/${_selectedDateRange!.start.month} - ${_selectedDateRange!.end.day}/${_selectedDateRange!.end.month}/${_selectedDateRange!.end.year}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'S/ ${totalAmount.toStringAsFixed(2)} (${filteredPayments.length} cobros)',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                        ],
+                color: const Color(0xFFFFF8D6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _selectedDateRange == null
+                          ? 'Total acumulado registrado:'
+                          : 'Total en rango seleccionado:',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF7A6800),
                       ),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.download_rounded, size: 18),
-                        label: const Text('Excel'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: AppTheme.textPrimary,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                        onPressed: () {
-                          context.read<PaymentsBloc>().add(
-                                ExportPayments(
-                                  startDate: _selectedDateRange?.start,
-                                  endDate: _selectedDateRange?.end,
-                                ),
-                              );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Generando reporte Excel del rango seleccionado...')),
-                          );
-                        },
+                    ),
+                    Text(
+                      'S/ ${totalFiltered.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF2C2200),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
 
               Expanded(
-                child: filteredPayments.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.history_rounded, size: 64, color: AppTheme.textPlaceholder),
-                            const SizedBox(height: 16),
-                            Text(
-                              _selectedDateRange == null
-                                  ? 'No hay historial de pagos registrado'
-                                  : 'No se encontraron pagos en este rango de fechas',
-                              style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        itemCount: filteredPayments.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final payment = filteredPayments[index];
-                          return _PaymentHistoryItem(payment: payment);
-                        },
-                      ),
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredPayments.length,
+                  itemBuilder: (context, index) {
+                    final payment = filteredPayments[index];
+                    return _HistoryItemCard(payment: payment);
+                  },
+                ),
               ),
             ],
           );
@@ -224,69 +185,62 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   }
 }
 
-class _PaymentHistoryItem extends StatelessWidget {
+class _HistoryItemCard extends StatelessWidget {
   final PaymentData payment;
-  const _PaymentHistoryItem({required this.payment});
+
+  const _HistoryItemCard({required this.payment});
 
   @override
   Widget build(BuildContext context) {
     final dateStr =
-        '${payment.parsedAt.day.toString().padLeft(2, '0')}/${payment.parsedAt.month.toString().padLeft(2, '0')}/${payment.parsedAt.year} · ${payment.parsedAt.hour.toString().padLeft(2, '0')}:${payment.parsedAt.minute.toString().padLeft(2, '0')}';
+        '${payment.parsedAt.day.toString().padLeft(2, '0')}/${payment.parsedAt.month.toString().padLeft(2, '0')}/${payment.parsedAt.year} ${payment.parsedAt.hour.toString().padLeft(2, '0')}:${payment.parsedAt.minute.toString().padLeft(2, '0')}';
 
-    return SoftCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return YtCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Container(
-            height: 44,
-            width: 44,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: BorderRadius.circular(14),
+              color: AppTheme.primaryColor.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
             ),
-            child: Center(
-              child: Text(
-                payment.senderName.isNotEmpty ? payment.senderName[0].toUpperCase() : '?',
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppTheme.textPrimary),
-              ),
+            child: const Icon(
+              Icons.arrow_downward_rounded,
+              color: AppTheme.primaryColor,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   payment.senderName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textPrimary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
-                const SizedBox(height: 2),
                 Text(
                   dateStr,
-                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '+ ${payment.currency} ${payment.amount.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                  color: AppTheme.successColor,
-                ),
-              ),
-              if (payment.operationNumber != null)
-                Text(
-                  '#${payment.operationNumber}',
-                  style: const TextStyle(fontSize: 10, color: AppTheme.textPlaceholder),
-                ),
-            ],
+          Text(
+            '+${payment.currency} ${payment.amount.toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: Color(0xFF00893E),
+            ),
           ),
         ],
       ),
