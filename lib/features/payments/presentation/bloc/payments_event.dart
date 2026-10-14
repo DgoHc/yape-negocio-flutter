@@ -29,6 +29,13 @@ class SaveManualPayment extends PaymentsEvent {
   List<Object?> get props => [payment];
 }
 
-class ClearOldPayments extends PaymentsEvent {}
+class ClearOldPayments extends PaymentsEvent {
+  final int days;
+
+  const ClearOldPayments(this.days);
+
+  @override
+  List<Object?> get props => [days];
+}
 
 class ClearAllPaymentsRequested extends PaymentsEvent {}

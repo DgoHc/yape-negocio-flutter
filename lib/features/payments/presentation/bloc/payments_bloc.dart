@@ -7,6 +7,7 @@ import '../../../../core/services/tts_service.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../notifications/domain/entities/payment_data.dart';
 import '../../domain/repositories/payment_repository.dart';
+import '../../domain/usecases/export_payments_use_case.dart';
 
 part 'payments_event.dart';
 part 'payments_state.dart';
@@ -14,6 +15,7 @@ part 'payments_state.dart';
 @injectable
 class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
   final PaymentRepository _paymentRepository;
+  final ExportPaymentsUseCase _exportPaymentsUseCase;
   final TtsService _ttsService;
   final SharedPreferences _prefs;
   StreamSubscription<PaymentData>? _paymentSubscription;
@@ -21,6 +23,7 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
 
   PaymentsBloc(
     this._paymentRepository,
+    this._exportPaymentsUseCase,
     this._ttsService,
     this._prefs,
   ) : super(const PaymentsState()) {
@@ -51,10 +54,10 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
     _rawSubscription?.cancel();
     _rawSubscription = _paymentRepository.onRawNotificationReceived.listen(
       (rawText) {
-        AppLogger.d('PaymentsBloc: Notificación cruda recibida: $rawText');
+        AppLogger.d('PaymentsBloc: Notificación RAW recibida: $rawText');
       },
       onError: (error) {
-        AppLogger.e('PaymentsBloc: Error escuchando notificaciones crudas', error);
+        AppLogger.e('PaymentsBloc: Error escuchando stream RAW', error);
       },
     );
   }
@@ -62,27 +65,28 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
   Future<void> _onLoadPayments(
       LoadPayments event, Emitter<PaymentsState> emit) async {
     emit(state.copyWith(status: PaymentsStatus.loading));
-
-    final days = _prefs.getInt('history_retention_days') ?? 0;
-    if (days > 0) {
-      await _paymentRepository.clearOldPayments(days);
-    }
-
+    
     final result = await _paymentRepository.getPayments();
-
+    
     result.fold(
-      (failure) => emit(state.copyWith(
-        status: PaymentsStatus.failure,
-        error: failure.message,
-      )),
+      (failure) {
+        AppLogger.e('PaymentsBloc: Error al cargar pagos: ${failure.message}');
+        emit(state.copyWith(
+          status: PaymentsStatus.failure,
+          error: failure.message,
+        ));
+      },
       (payments) {
         final now = DateTime.now();
-        final dailyTotal = payments
-            .where((p) =>
-                p.parsedAt.year == now.year &&
-                p.parsedAt.month == now.month &&
-                p.parsedAt.day == now.day)
-            .fold(0.0, (sum, p) => sum + p.amount);
+        final todayPayments = payments.where((p) =>
+            p.parsedAt.year == now.year &&
+            p.parsedAt.month == now.month &&
+            p.parsedAt.day == now.day).toList();
+            
+        final dailyTotal = todayPayments.fold<double>(
+            0.0, (sum, item) => sum + item.amount);
+
+        AppLogger.i('PaymentsBloc: ${payments.length} pagos cargados. Total hoy: S/ $dailyTotal');
 
         emit(state.copyWith(
           status: PaymentsStatus.success,
@@ -95,15 +99,19 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
 
   Future<void> _onPaymentReceived(
       PaymentReceived event, Emitter<PaymentsState> emit) async {
-    final updatedPayments = List<PaymentData>.from(state.payments)..insert(0, event.payment);
+    final updatedPayments = List<PaymentData>.from(state.payments)
+      ..insert(0, event.payment);
 
     final now = DateTime.now();
-    final dailyTotal = updatedPayments
-        .where((p) =>
-            p.parsedAt.year == now.year &&
-            p.parsedAt.month == now.month &&
-            p.parsedAt.day == now.day)
-        .fold(0.0, (sum, p) => sum + p.amount);
+    final todayPayments = updatedPayments.where((p) =>
+        p.parsedAt.year == now.year &&
+        p.parsedAt.month == now.month &&
+        p.parsedAt.day == now.day).toList();
+        
+    final dailyTotal = todayPayments.fold<double>(
+        0.0, (sum, item) => sum + item.amount);
+
+    AppLogger.i('PaymentsBloc: Pago recibido en tiempo real. Nuevo total hoy: S/ $dailyTotal');
 
     emit(state.copyWith(
       status: PaymentsStatus.success,
@@ -114,11 +122,22 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
 
   Future<void> _onExportPayments(
       ExportPayments event, Emitter<PaymentsState> emit) async {
+    emit(state.copyWith(status: PaymentsStatus.loading));
     final result = await _paymentRepository.getPayments();
 
-    result.fold(
-      (failure) => emit(state.copyWith(status: PaymentsStatus.failure, error: failure.message)),
-      (_) => emit(state.copyWith(status: PaymentsStatus.success)),
+    await result.fold(
+      (failure) async {
+        emit(state.copyWith(status: PaymentsStatus.failure, error: failure.message));
+      },
+      (payments) async {
+        final exportResult = await _exportPaymentsUseCase(
+          ExportPaymentsParams(payments: payments),
+        );
+        exportResult.fold(
+          (failure) => emit(state.copyWith(status: PaymentsStatus.failure, error: failure.message)),
+          (_) => emit(state.copyWith(status: PaymentsStatus.success)),
+        );
+      },
     );
   }
 
@@ -140,25 +159,31 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
           "$cleanTtsName envió ${event.payment.amount} soles",
           isMuted: isMuted,
         );
-        add(PaymentReceived(event.payment));
+        add(LoadPayments());
       },
     );
   }
 
   Future<void> _onClearOldPayments(
       ClearOldPayments event, Emitter<PaymentsState> emit) async {
-    final days = _prefs.getInt('history_retention_days') ?? 0;
-    if (days > 0) {
-      await _paymentRepository.clearOldPayments(days);
-      add(LoadPayments());
-    }
+    emit(state.copyWith(status: PaymentsStatus.loading));
+    final result = await _paymentRepository.clearOldPayments(event.days);
+    
+    result.fold(
+      (failure) => emit(state.copyWith(status: PaymentsStatus.failure, error: failure.message)),
+      (_) => add(LoadPayments()),
+    );
   }
 
   Future<void> _onClearAllPaymentsRequested(
       ClearAllPaymentsRequested event, Emitter<PaymentsState> emit) async {
     emit(state.copyWith(status: PaymentsStatus.loading));
-    await _paymentRepository.deleteAllPayments();
-    add(LoadPayments());
+    final result = await _paymentRepository.deleteAllPayments();
+    
+    result.fold(
+      (failure) => emit(state.copyWith(status: PaymentsStatus.failure, error: failure.message)),
+      (_) => add(LoadPayments()),
+    );
   }
 
   @override

@@ -312,13 +312,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i614.UpdateUserUseCase>(
       () => _i614.UpdateUserUseCase(gh<_i583.AdminRepository>()),
     );
-    gh.factory<_i511.PaymentsBloc>(
-      () => _i511.PaymentsBloc(
-        gh<_i315.PaymentRepository>(),
-        gh<_i27.TtsService>(),
-        gh<_i460.SharedPreferences>(),
-      ),
-    );
     gh.lazySingleton<_i787.AuthRepository>(
       () => _i153.AuthRepositoryImpl(
         gh<_i203.AuthRemoteDataSource>(),
@@ -382,6 +375,14 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i100.RegisterDeviceUseCase>(
       () => _i100.RegisterDeviceUseCase(gh<_i787.AuthRepository>()),
+    );
+    gh.factory<_i511.PaymentsBloc>(
+      () => _i511.PaymentsBloc(
+        gh<_i315.PaymentRepository>(),
+        gh<_i997.ExportPaymentsUseCase>(),
+        gh<_i27.TtsService>(),
+        gh<_i460.SharedPreferences>(),
+      ),
     );
     gh.factory<_i711.LogoutUseCase>(
       () => _i711.LogoutUseCase(

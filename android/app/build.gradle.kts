@@ -40,7 +40,7 @@ android {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
             keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+ storeFile = keystoreProperties["storeFile"]?.let { file(it) }
             storePassword = keystoreProperties["storePassword"] as String?
         }
     }
@@ -48,9 +48,8 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            // Desactivamos ofuscación para evitar que R8 borre clases de Google Auth
-            isMinifyEnabled = false 
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -61,6 +60,7 @@ flutter {
 }
 
 dependencies {
+    implementation("androidx.activity:activity-ktx:1.9.0")
     implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.android.gms:play-services-auth:21.2.0")

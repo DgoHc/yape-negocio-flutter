@@ -1,13 +1,21 @@
-# Conservar todo lo relacionado con Google Play Services y Auth
+# Flutter
+-keep class io.flutter.** { *; }
+-keep class io.flutter.plugin.** { *; }
+-keep class io.flutter.app.** { *; }
+
+# Google Services & Auth
 -keep class com.google.android.gms.** { *; }
 -keep class com.google.firebase.** { *; }
--keep class com.novabytex.aplicativo.** { *; }
 
-# Mantener protocolos de red
+# Services & Receivers
+-keep class com.novabytex.aplicativo.YapeNotificationListenerService { *; }
+-keep class com.novabytex.aplicativo.BootReceiver { *; }
+-keep class com.novabytex.aplicativo.MainActivity { *; }
+
+# Network & DB
 -keep class okhttp3.** { *; }
 -keep class retrofit2.** { *; }
 -keep class com.dio.** { *; }
 
-# Evitar errores de des-serialización de JSON
--keepattributes Signature,AnnotationDefault,EnclosingMethod,InnerClasses
--keep public class * extends com.novabytex.aplicativo.features.auth.data.dtos.** { *; }
+# Attributes
+-keepattributes Signature,AnnotationDefault,EnclosingMethod,InnerClasses,*Annotation*

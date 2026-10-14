@@ -177,12 +177,18 @@ class ExportService {
         await file.create(recursive: true);
         await file.writeAsBytes(fileBytes);
 
-        AppLogger.i('ExportService: Reporte Excel generado en $filePath');
+        AppLogger.i('ExportService: Reporte Excel generado exitosamente en $filePath');
 
-        // Intento 1: Abrir archivo directamente con visor Excel instalado
-        final openResult = await OpenFilex.open(filePath);
-        if (openResult.type != ResultType.done) {
-          // Intento 2: Compartir / Guardar mediante la hoja del sistema
+        // Intentar abrir directamente, y siempre desplegar ventana de compartir/guardar
+        try {
+          final result = await OpenFilex.open(filePath);
+          if (result.type != ResultType.done) {
+            await Share.shareXFiles(
+              [XFile(filePath)],
+              text: 'Reporte Excel de Pagos - SonoPay',
+            );
+          }
+        } catch (_) {
           await Share.shareXFiles(
             [XFile(filePath)],
             text: 'Reporte Excel de Pagos - SonoPay',

@@ -1,5 +1,7 @@
 package com.novabytex.aplicativo
 
+import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -12,6 +14,11 @@ import android.os.Build
 
 class MainActivity : FlutterActivity() {
     private val SETTINGS_CHANNEL = "pe.yape.transporte/settings"
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
+        super.onCreate(savedInstanceState)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
