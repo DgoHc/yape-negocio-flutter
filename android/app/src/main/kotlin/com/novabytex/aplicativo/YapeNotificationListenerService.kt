@@ -35,10 +35,12 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
 
     override fun onCreate() {
         super.onCreate()
+        // Iniciar servicio en primer plano INMEDIATAMENTE para evitar que Android considere la app colgada o bloqueada
         try {
+            startForegroundService()
             tts = TextToSpeech(applicationContext, this)
         } catch (e: Exception) {
-            Log.e("SonoPayService", "Error initializing native TTS", e)
+            Log.e("SonoPayService", "Error en onCreate del servicio", e)
         }
     }
 
@@ -47,7 +49,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             val result = tts?.setLanguage(Locale("es", "PE"))
             if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
                 isTtsReady = true
-                Log.d("SonoPayService", "Native TTS ready for es-PE")
+                Log.d("SonoPayService", "TTS nativo listo para es-PE")
             } else {
                 tts?.setLanguage(Locale("es", "ES"))
                 isTtsReady = true
@@ -62,7 +64,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
 
     override fun onListenerConnected() {
         super.onListenerConnected()
-        Log.d("SonoPayService", "NotificationListener connected successfully")
+        Log.d("SonoPayService", "NotificationListener conectado exitosamente")
         startForegroundService()
         val data = mutableMapOf<String, Any>(
             "status" to "connected"
@@ -76,37 +78,41 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             super.onListenerDisconnected()
         }
-        Log.d("SonoPayService", "NotificationListener disconnected! Forcing rebind...")
+        Log.d("SonoPayService", "NotificationListener desconectado! Re-vinculando...")
         BootReceiver.rebindService(this)
     }
 
     private fun startForegroundService() {
-        val channelName = "SonoPay Background Service"
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val chan = NotificationChannel(CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW)
-            chan.setShowBadge(false)
-            manager.createNotificationChannel(chan)
-        }
+        try {
+            val channelName = "SonoPay Background Service"
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val chan = NotificationChannel(CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW)
+                chan.setShowBadge(false)
+                manager.createNotificationChannel(chan)
+            }
 
-        val notificationBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-        } else {
-            Notification.Builder(this)
-        }
+            val notificationBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(this, CHANNEL_ID)
+            } else {
+                Notification.Builder(this)
+            }
 
-        val notification = notificationBuilder.setOngoing(true)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("SonoPay Activo")
-            .setContentText("Detectando pagos de Yape, Plin y Mi Banco en segundo plano...")
-            .setCategory(Notification.CATEGORY_SERVICE)
-            .build()
+            val notification = notificationBuilder.setOngoing(true)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("SonoPay Activo")
+                .setContentText("Detectando pagos de Yape, Plin y Mi Banco en tiempo real...")
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .build()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.e("SonoPayService", "Error al iniciar servicio en primer plano", e)
         }
     }
 
@@ -142,21 +148,21 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         val rawBody = if (fullContent.isNotEmpty()) fullContent else title
         val lowerText = "$title $rawBody".lowercase()
 
-        // IGNORAR PAGOS SALIENTES (PAGOS ENVIADOS POR EL MISMO USUARIO)
-        val outgoingKeywords = listOf(
-            "enviaste", "yapeaste", "pago enviado", "transferencia realizada",
-            "transferencia exitosa", "comprobante de pago", "le enviaste",
-            "has enviado", "pago realizado", "pago exitoso a", "yapeó a"
+        // FILTRO DE PAGOS SALIENTES (ÚNICAMENTE FRASES UNÁMBIGUAS DE ENVÍO)
+        val strictOutgoingKeywords = listOf(
+            "enviaste un yape", "yapeaste s/", "yapeaste a ", "le enviaste",
+            "transferencia realizada con éxito", "has enviado s/", "pago realizado a ",
+            "pago exitoso a "
         )
 
-        for (keyword in outgoingKeywords) {
+        for (keyword in strictOutgoingKeywords) {
             if (lowerText.contains(keyword)) {
                 Log.d("SonoPayService", "Ignorando notificación de pago saliente: $title $rawBody")
                 return
             }
         }
 
-        Log.d("SonoPayService", "Notification Captured: pkg=$packageName | title=$title | rawBody=$rawBody")
+        Log.d("SonoPayService", "Notification Capturada: pkg=$packageName | title=$title | rawBody=$rawBody")
 
         val data = mutableMapOf<String, Any>(
             "packageName" to packageName, 
@@ -164,7 +170,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             "rawBody" to rawBody
         )
 
-        // 1. Si Flutter está abierto en primer plano, enviar evento para procesar por Flutter Dart
+        // 1. Si Flutter está abierto en primer plano, enviar evento por EventChannel
         Handler(Looper.getMainLooper()).post { 
             try { 
                 eventSink?.success(data) 
@@ -173,8 +179,8 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             } 
         }
 
-        // 2. Si Flutter está CERRADO o ELIMINADO de aplicaciones recientes (eventSink == null),
-        // la voz nativa en Kotlin debe sonar INMEDIATAMENTE en segundo plano.
+        // 2. Si Flutter está CERRADO o ELIMINADO de recientes (eventSink == null),
+        // hablar por la voz nativa de Kotlin e ingresar a la cola
         if (eventSink == null) {
             val parsed = parseNativePayment(title, rawBody)
             if (parsed != null) {
@@ -218,9 +224,9 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
 
             jsonArray.put(newObj)
             prefs.edit().putString(KEY_PENDING_PAYMENTS, jsonArray.toString()).apply()
-            Log.d("SonoPayService", "Pending payment saved natively: $senderName | $amount")
+            Log.d("SonoPayService", "Pago pendiente guardado nativamente: $senderName | $amount")
         } catch (e: Exception) {
-            Log.e("SonoPayService", "Error saving pending payment to prefs", e)
+            Log.e("SonoPayService", "Error guardando pago pendiente", e)
         }
     }
 

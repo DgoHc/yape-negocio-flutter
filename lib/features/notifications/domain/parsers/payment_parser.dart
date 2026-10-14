@@ -16,18 +16,14 @@ class PaymentParser {
   ];
 
   static final List<String> _outgoingKeywords = [
-    "enviaste",
-    "yapeaste",
-    "pago enviado",
-    "transferencia realizada",
-    "transferencia exitosa",
-    "comprobante de pago",
+    "enviaste un yape",
+    "yapeaste s/",
+    "yapeaste a ",
     "le enviaste",
-    "has enviado",
-    "pago realizado",
-    "pago exitoso a",
-    "yapeó a",
-    "enviado:",
+    "transferencia realizada con éxito",
+    "has enviado s/",
+    "pago realizado a ",
+    "pago exitoso a ",
   ];
 
   static final List<RegExp> _incomingPaymentRegexes = [

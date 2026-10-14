@@ -221,6 +221,13 @@ class PaymentRepositoryImpl implements PaymentRepository {
         }
       }
 
+      // 3. Filtrar los pagos según la última fecha de borrado de historial local
+      final lastClearedMillis = prefs.getInt('history_last_cleared_at') ?? 0;
+      if (lastClearedMillis > 0) {
+        final lastClearedDate = DateTime.fromMillisecondsSinceEpoch(lastClearedMillis);
+        domainPayments = domainPayments.where((p) => p.parsedAt.isAfter(lastClearedDate)).toList();
+      }
+
       // Ordenar los pagos por fecha descendente
       domainPayments.sort((a, b) => b.parsedAt.compareTo(a.parsedAt));
 
@@ -288,6 +295,8 @@ class PaymentRepositoryImpl implements PaymentRepository {
   Future<Either<Failure, void>> deleteAllPayments() async {
     try {
       await paymentDao.deleteAllPayments();
+      final nowMillis = DateTime.now().millisecondsSinceEpoch;
+      await prefs.setInt('history_last_cleared_at', nowMillis);
       return const Right(null);
     } catch (e) {
       return Left(DatabaseFailure(e.toString()));

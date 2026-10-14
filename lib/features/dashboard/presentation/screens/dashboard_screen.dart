@@ -37,7 +37,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Al volver a primer plano o cambiar de día, recalcular balance y lista
       context.read<PaymentsBloc>().add(LoadPayments());
       context.read<SettingsBloc>().add(LoadControlSettings());
     }
@@ -390,7 +389,11 @@ class _PaymentsListGrouped extends StatelessWidget {
             children: todayPayments
                 .map((payment) => Padding(
                       padding: const EdgeInsets.only(bottom: 10.0),
-                      child: _PaymentItemRow(payment: payment),
+                      child: InkWell(
+                        onTap: () => _showPaymentDetailModal(context, payment),
+                        borderRadius: BorderRadius.circular(22),
+                        child: _PaymentItemRow(payment: payment),
+                      ),
                     ))
                 .toList(),
           ),
@@ -433,11 +436,133 @@ class _PaymentsListGrouped extends StatelessWidget {
                 .take(6)
                 .map((payment) => Padding(
                       padding: const EdgeInsets.only(bottom: 10.0),
-                      child: _PaymentItemRow(payment: payment),
+                      child: InkWell(
+                        onTap: () => _showPaymentDetailModal(context, payment),
+                        borderRadius: BorderRadius.circular(22),
+                        child: _PaymentItemRow(payment: payment),
+                      ),
                     ))
                 .toList(),
           ),
         ],
+      ],
+    );
+  }
+
+  void _showPaymentDetailModal(BuildContext context, dynamic payment) {
+    final dateStr =
+        '${payment.parsedAt.day.toString().padLeft(2, '0')}/${payment.parsedAt.month.toString().padLeft(2, '0')}/${payment.parsedAt.year}';
+    final timeStr =
+        '${payment.parsedAt.hour.toString().padLeft(2, '0')}:${payment.parsedAt.minute.toString().padLeft(2, '0')}:${payment.parsedAt.second.toString().padLeft(2, '0')}';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              const Row(
+                children: [
+                  Icon(Icons.receipt_long_rounded, color: Color(0xFFFFCD19), size: 28),
+                  SizedBox(width: 10),
+                  Text(
+                    'Detalle del Cobro',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF2C2200),
+                      fontFamily: 'Plus Jakarta Sans',
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8D6),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _buildModalRow('Cliente / Remitente:', payment.senderName, isBold: true),
+                    const Divider(height: 20, color: Color(0xFFE5E7EB)),
+                    _buildModalRow('Monto Recibido:', '+ ${payment.currency} ${payment.amount.toStringAsFixed(2)}', valueColor: const Color(0xFF00893E), isBold: true),
+                    const Divider(height: 20, color: Color(0xFFE5E7EB)),
+                    _buildModalRow('Fecha del Pago:', dateStr),
+                    const Divider(height: 20, color: Color(0xFFE5E7EB)),
+                    _buildModalRow('Hora Exacta:', timeStr),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFCD19),
+                    foregroundColor: const Color(0xFF2C2200),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                  ),
+                  child: const Text('Cerrar Detalle', style: TextStyle(fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildModalRow(String label, String value, {bool isBold = false, Color? valueColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Color(0xFF7A6800),
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Plus Jakarta Sans',
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isBold ? 15 : 13.5,
+            fontWeight: isBold ? FontWeight.w900 : FontWeight.w700,
+            color: valueColor ?? const Color(0xFF2C2200),
+            fontFamily: 'Plus Jakarta Sans',
+          ),
+        ),
       ],
     );
   }

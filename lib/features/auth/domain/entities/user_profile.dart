@@ -36,8 +36,8 @@ class UserProfile {
 
   /// Días restantes de prueba gratuita
   int get daysLeft {
-    if (trialEndDate == null) return 0;
-    final remaining = trialEndDate!.difference(DateTime.now()).inDays;
+    final effectiveTrialEnd = trialEndDate ?? createdAt.add(const Duration(days: 14));
+    final remaining = effectiveTrialEnd.difference(DateTime.now()).inDays;
     return remaining > 0 ? remaining : 0;
   }
 
@@ -50,19 +50,15 @@ class UserProfile {
       }
       return true;
     }
-    if (trialEndDate != null) {
-      return now.isBefore(trialEndDate!);
-    }
-    return false;
+    final effectiveTrialEnd = trialEndDate ?? createdAt.add(const Duration(days: 14));
+    return now.isBefore(effectiveTrialEnd);
   }
 
   /// Indica si la prueba gratuita está activa.
   bool get isTrialActive {
     final now = DateTime.now();
-    if (trialEndDate != null) {
-      return now.isBefore(trialEndDate!);
-    }
-    return false;
+    final effectiveTrialEnd = trialEndDate ?? createdAt.add(const Duration(days: 14));
+    return now.isBefore(effectiveTrialEnd);
   }
 
   /// Crea un perfil con prueba gratuita activa.
@@ -110,7 +106,7 @@ class UserProfile {
       subscriptionStartDate: now,
       subscriptionEndDate: now.add(const Duration(days: 30)),
       isSubscribed: true,
-      subscriptionPlan: subscriptionPlan,
+      subscriptionPlan: subscriptionPlan ?? 'premium',
       createdAt: now,
     );
   }

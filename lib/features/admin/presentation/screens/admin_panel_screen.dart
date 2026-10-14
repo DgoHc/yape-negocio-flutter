@@ -106,7 +106,7 @@ class AdminPanelView extends StatelessWidget {
               ),
               body: TabBarView(
                 children: [
-                  _buildDevicesTab(context, isSuperAdmin || isAdmin),
+                  _buildDevicesTab(context, isSuperAdmin),
                   if (isSuperAdmin) _buildUsersTab(context),
                   if (canSeeProfiles) _buildUserProfilesTab(context),
                 ],
@@ -170,23 +170,61 @@ class AdminPanelView extends StatelessWidget {
   }
 
   Widget _buildUserProfilesTab(BuildContext context) {
-    return BlocBuilder<AdminBloc, AdminState>(
-      builder: (context, state) {
-        if (state.status == AdminStatus.loading && state.userProfiles.isEmpty) {
-          return const Center(child: YtLoader());
-        }
+    String searchQuery = '';
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return BlocBuilder<AdminBloc, AdminState>(
+          builder: (context, state) {
+            if (state.status == AdminStatus.loading && state.userProfiles.isEmpty) {
+              return const Center(child: YtLoader());
+            }
 
-        if (state.userProfiles.isEmpty) {
-          return const Center(child: Text('No hay perfiles de usuario'));
-        }
+            final filtered = state.userProfiles.where((p) {
+              if (searchQuery.trim().isEmpty) return true;
+              final q = searchQuery.toLowerCase();
+              final nMatch = p.name.toLowerCase().contains(q);
+              final eMatch = p.email?.toLowerCase().contains(q) ?? false;
+              final pMatch = p.phone?.toLowerCase().contains(q) ?? false;
+              return nMatch || eMatch || pMatch;
+            }).toList();
 
-        return ListView.separated(
-          padding: const EdgeInsets.all(20),
-          itemCount: state.userProfiles.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final profile = state.userProfiles[index];
-            return _buildUserProfileItem(context, profile);
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE8E9F3)),
+                    ),
+                    child: TextField(
+                      onChanged: (val) => setState(() => searchQuery = val),
+                      decoration: const InputDecoration(
+                        hintText: 'Buscar por Nombre y Apellido...',
+                        hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
+                        prefixIcon: Icon(Icons.search_rounded, color: Color(0xFFFFCD19)),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const Center(child: Text('No se encontraron perfiles'))
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final profile = filtered[index];
+                            return _buildUserProfileItem(context, profile);
+                          },
+                        ),
+                ),
+              ],
+            );
           },
         );
       },
@@ -219,7 +257,7 @@ class AdminPanelView extends StatelessWidget {
             if (profile.businessType != null) Text('Rubro: ${profile.businessType}', style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
             Text(
               hasAccess
-                  ? (expDateStr != null ? 'Suscripción Activa (Hasta: $expDateStr)' : 'Suscripción Activa')
+                  ? (expDateStr != null ? 'Suscripción Activa (Hasta: $expDateStr)' : 'Prueba / Suscripción Activa')
                   : 'Suscripción Inactiva / Suspendida',
               style: TextStyle(
                 fontSize: 10,
@@ -299,16 +337,66 @@ class AdminPanelView extends StatelessWidget {
       backgroundColor: AppTheme.primaryColor,
       child: const Icon(Icons.add_rounded, color: Color(0xFF3D2E00)),
       onPressed: () {
-        final isSuperAdmin = authState.userRole == 'SUPER_ADMIN';
         final tabIndex = DefaultTabController.of(context).index;
         if (tabIndex == 0) {
           _showAddDeviceDialog(context);
-        } else if (tabIndex == 1 && isSuperAdmin) {
+        } else if (tabIndex == 1 && authState.userRole == 'SUPER_ADMIN') {
           _showAddUserDialog(context);
-        } else if (tabIndex == (isSuperAdmin ? 2 : 1)) {
+        } else {
           _showAddAppUserDialog(context);
         }
       },
+    );
+  }
+
+  Widget _buildDeviceItem(BuildContext context, dynamic device, bool isSuperAdmin) {
+    final id = device.id?.toString() ?? '';
+    final uuid = device.uuid ?? '';
+    final alias = device.alias ?? 'Sin alias';
+    final isApproved = device.isApproved ?? false;
+
+    return SoftCard(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: ListTile(
+        leading: ClayContainer(
+          width: 40, height: 40, borderRadius: 10,
+          color: isApproved ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
+          child: Icon(
+            isApproved ? Icons.phone_android_rounded : Icons.no_cell_rounded,
+            color: isApproved ? AppTheme.successColor : Colors.orange,
+            size: 20,
+          ),
+        ),
+        title: Text(alias, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('UUID: ${uuid.length > 16 ? "${uuid.substring(0, 16)}..." : uuid}', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+        trailing: isSuperAdmin
+            ? Switch(
+                activeThumbColor: AppTheme.primaryColor,
+                value: isApproved,
+                onChanged: (val) {
+                  context.read<AdminBloc>().add(UpdateDeviceStatus(id: id, isApproved: val));
+                },
+              )
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildUserItem(BuildContext context, dynamic user) {
+    final username = user.username ?? 'Sin usuario';
+    final role = user.role ?? 'ADMIN';
+
+    return SoftCard(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: ListTile(
+        leading: ClayContainer(
+          width: 40, height: 40, borderRadius: 10,
+          color: const Color(0xFFFFF8D6),
+          child: const Icon(Icons.admin_panel_settings_rounded, color: Color(0xFF7A6800), size: 20),
+        ),
+        title: Text(username, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('Rol: $role', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+      ),
     );
   }
 
@@ -341,13 +429,13 @@ class AdminPanelView extends StatelessWidget {
                 onChanged: (val) => setState(() => selectedDays = val!),
               ),
               RadioListTile<int>(
-                title: const Text('1 Año (365 Días)'),
+                title: const Text('Suscripción Completa / Ilimitada (1 Año)'),
                 value: 365,
                 groupValue: selectedDays,
                 onChanged: (val) => setState(() => selectedDays = val!),
               ),
               RadioListTile<int>(
-                title: const Text('Acceso Ilimitado (10 Años)'),
+                title: const Text('Suscripción Máxima Premium (10 Años)'),
                 value: 3650,
                 groupValue: selectedDays,
                 onChanged: (val) => setState(() => selectedDays = val!),
@@ -385,152 +473,33 @@ class AdminPanelView extends StatelessWidget {
     );
   }
 
-  void _showAddAppUserDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
-    final phoneController = TextEditingController();
-    final businessTypeController = TextEditingController();
-    bool isSubscribed = true;
+  void _showAddDeviceDialog(BuildContext context) {
+    final uuidController = TextEditingController();
+    final aliasController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (statefulContext, setState) => AlertDialog(
-          backgroundColor: AppTheme.backgroundColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('Nuevo Perfil de Usuario', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                YtTextField(controller: nameController, label: 'Nombre Completo', hintText: 'Ej. Juan Pérez'),
-                const SizedBox(height: 12),
-                YtTextField(controller: emailController, label: 'Correo', hintText: 'juan@correo.com', keyboardType: TextInputType.emailAddress),
-                const SizedBox(height: 12),
-                YtTextField(controller: passwordController, label: 'Contraseña', hintText: 'Mínimo 6 caracteres', obscureText: true),
-                const SizedBox(height: 12),
-                YtTextField(controller: phoneController, label: 'Teléfono (Opcional)', hintText: '9XXXXXXXX', keyboardType: TextInputType.phone),
-                const SizedBox(height: 12),
-                YtTextField(controller: businessTypeController, label: 'Rubro / Negocio (Opcional)', hintText: 'Ej. Transporte'),
-                const SizedBox(height: 16),
-                SwitchListTile(
-                  title: const Text('Activar Plan Suscrito'),
-                  value: isSubscribed,
-                  activeThumbColor: AppTheme.primaryColor,
-                  onChanged: (val) => setState(() => isSubscribed = val),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
-            AppButton(
-              label: 'Crear',
-              onPressed: () {
-                if (nameController.text.isNotEmpty &&
-                    emailController.text.isNotEmpty &&
-                    passwordController.text.length >= 6) {
-                  context.read<AdminBloc>().add(
-                        CreateAppUserRequested(
-                          name: nameController.text.trim(),
-                          email: emailController.text.trim(),
-                          password: passwordController.text,
-                          phone: phoneController.text.isEmpty ? null : phoneController.text.trim(),
-                          businessType: businessTypeController.text.isEmpty ? null : businessTypeController.text.trim(),
-                          isSubscribed: isSubscribed,
-                        ),
-                      );
-                  Navigator.pop(dialogContext);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ingresa todos los campos requeridos (mín. 6 caracteres contraseña)')),
-                  );
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showEditAppUserDialog(BuildContext context, UserProfile profile) {
-    final nameController = TextEditingController(text: profile.name);
-    final emailController = TextEditingController(text: profile.email ?? '');
-    final phoneController = TextEditingController(text: profile.phone ?? '');
-    final businessTypeController = TextEditingController(text: profile.businessType ?? '');
-    bool isSubscribed = profile.isSubscribed;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (statefulContext, setState) => AlertDialog(
-          backgroundColor: AppTheme.backgroundColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('Editar Perfil de Usuario', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                YtTextField(controller: nameController, label: 'Nombre Completo', hintText: 'Ej. Juan Pérez'),
-                const SizedBox(height: 12),
-                YtTextField(controller: emailController, label: 'Correo', hintText: 'juan@correo.com', keyboardType: TextInputType.emailAddress),
-                const SizedBox(height: 12),
-                YtTextField(controller: phoneController, label: 'Teléfono', hintText: '9XXXXXXXX', keyboardType: TextInputType.phone),
-                const SizedBox(height: 12),
-                YtTextField(controller: businessTypeController, label: 'Rubro / Negocio', hintText: 'Ej. Transporte'),
-                const SizedBox(height: 16),
-                SwitchListTile(
-                  title: const Text('Estado de Suscripción'),
-                  value: isSubscribed,
-                  activeThumbColor: AppTheme.primaryColor,
-                  onChanged: (val) => setState(() => isSubscribed = val),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
-            AppButton(
-              label: 'Guardar',
-              onPressed: () {
-                if (profile.id != null) {
-                  context.read<AdminBloc>().add(
-                        UpdateAppUserRequested(
-                          id: profile.id!,
-                          name: nameController.text.trim(),
-                          email: emailController.text.trim(),
-                          phone: phoneController.text.isEmpty ? null : phoneController.text.trim(),
-                          businessType: businessTypeController.text.isEmpty ? null : businessTypeController.text.trim(),
-                          isSubscribed: isSubscribed,
-                        ),
-                      );
-                  Navigator.pop(dialogContext);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDeleteAppUser(BuildContext context, UserProfile profile) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.backgroundColor,
-        title: const Text('Eliminar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('¿Estás seguro de eliminar el perfil de "${profile.name}" (${profile.email ?? ""})?\n\nSe desvincularán sus dispositivos, notificaciones y registros asociados.'),
+        title: const Text('Registrar Equipo Hardware'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            YtTextField(controller: uuidController, label: 'UUID del Dispositivo'),
+            const SizedBox(height: 12),
+            YtTextField(controller: aliasController, label: 'Alias (Ej: Conductor Juan)'),
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
           AppButton(
-            label: 'Eliminar Definivamente',
-            isSecondary: true,
+            label: 'Guardar',
             onPressed: () {
-              if (profile.id != null) {
-                context.read<AdminBloc>().add(DeleteAppUserRequested(profile.id!));
+              if (uuidController.text.isNotEmpty && aliasController.text.isNotEmpty) {
+                context.read<AdminBloc>().add(RegisterDeviceManual(
+                      uuid: uuidController.text.trim(),
+                      alias: aliasController.text.trim(),
+                    ));
                 Navigator.pop(dialogContext);
               }
             },
@@ -541,155 +510,146 @@ class AdminPanelView extends StatelessWidget {
   }
 
   void _showAddUserDialog(BuildContext context) {
-    final usernameController = TextEditingController();
-    final pinController = TextEditingController();
-    String selectedRole = 'ADMIN';
+    final userController = TextEditingController();
+    final passController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (statefulContext, setState) => AlertDialog(
-          backgroundColor: AppTheme.backgroundColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('Nuevo Administrador', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                YtTextField(controller: usernameController, label: 'Usuario', hintText: 'Ej. admin_01'),
-                const SizedBox(height: 16),
-                YtTextField(controller: pinController, label: 'PIN (6 dígitos)', hintText: '000000', keyboardType: TextInputType.number, obscureText: true),
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
-                  child: Text('Rol de Acceso', style: Theme.of(context).textTheme.labelMedium),
-                ),
-                ClayContainer(
-                  color: AppTheme.surfaceColor, borderRadius: 16, isPressed: true, shadowIntensity: 0.3,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: selectedRole,
-                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 20)),
-                    items: const [
-                      DropdownMenuItem(value: 'ADMIN', child: Text('Administrador')),
-                      DropdownMenuItem(value: 'SUPERVISOR', child: Text('Supervisor')),
-                      DropdownMenuItem(value: 'SUPER_ADMIN', child: Text('Super Admin')),
-                    ],
-                    onChanged: (value) => setState(() => selectedRole = value!),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
-            AppButton(label: 'Crear', onPressed: () {
-              if (usernameController.text.isNotEmpty && pinController.text.length == 6) {
-                context.read<AdminBloc>().add(CreateUserRequested(username: usernameController.text, pin: pinController.text, role: selectedRole));
-                Navigator.pop(dialogContext);
-              }
-            }),
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.backgroundColor,
+        title: const Text('Crear Usuario Admin'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            YtTextField(controller: userController, label: 'Nombre de Usuario'),
+            const SizedBox(height: 12),
+            YtTextField(controller: passController, label: 'PIN / Contraseña', isPassword: true),
           ],
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
+          AppButton(
+            label: 'Crear',
+            onPressed: () {
+              if (userController.text.isNotEmpty && passController.text.isNotEmpty) {
+                context.read<AdminBloc>().add(CreateUserRequested(
+                      username: userController.text.trim(),
+                      pin: passController.text.trim(),
+                      role: 'ADMIN',
+                    ));
+                Navigator.pop(dialogContext);
+              }
+            },
+          ),
+        ],
       ),
     );
   }
 
-  void _showAddDeviceDialog(BuildContext context) {
-    final uuidController = TextEditingController();
-    final aliasController = TextEditingController();
+  void _showAddAppUserDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
     final phoneController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.backgroundColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        title: const Text('Registrar Conductor', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              YtTextField(controller: uuidController, label: 'UUID Dispositivo', hintText: 'XXXXXXXX-...'),
-              const SizedBox(height: 16),
-              YtTextField(controller: aliasController, label: 'Alias Unidad', hintText: 'Ej. Taxi 05'),
-              const SizedBox(height: 16),
-              YtTextField(controller: phoneController, label: 'Celular (Opcional)', hintText: '9XXXXXXXX', keyboardType: TextInputType.phone),
-            ],
-          ),
+        title: const Text('Crear Usuario App'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            YtTextField(controller: nameController, label: 'Nombre Completo'),
+            const SizedBox(height: 12),
+            YtTextField(controller: emailController, label: 'Correo Electrónico'),
+            const SizedBox(height: 12),
+            YtTextField(controller: phoneController, label: 'Teléfono'),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
-          AppButton(label: 'Registrar', onPressed: () {
-            if (uuidController.text.isNotEmpty && aliasController.text.isNotEmpty) {
-              context.read<AdminBloc>().add(RegisterDeviceManual(uuid: uuidController.text, alias: aliasController.text, phoneNumber: phoneController.text.isEmpty ? null : phoneController.text));
-              Navigator.pop(dialogContext);
-            }
-          }),
+          AppButton(
+            label: 'Crear',
+            onPressed: () {
+              if (nameController.text.isNotEmpty) {
+                final emailVal = emailController.text.trim().isNotEmpty
+                    ? emailController.text.trim()
+                    : '${nameController.text.trim().toLowerCase().replaceAll(' ', '')}@sonopay.com';
+                context.read<AdminBloc>().add(CreateAppUserRequested(
+                      name: nameController.text.trim(),
+                      email: emailVal,
+                      password: 'password123',
+                      phone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : null,
+                    ));
+                Navigator.pop(dialogContext);
+              }
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDeviceItem(BuildContext context, Map<String, dynamic> device, bool isSuperAdmin) {
-    final bool isApproved = device['isApproved'] ?? false;
-    final String status = device['status'] ?? 'ACTIVE';
-    final String id = device['id'].toString();
+  void _showEditAppUserDialog(BuildContext context, UserProfile profile) {
+    final nameController = TextEditingController(text: profile.name);
+    final emailController = TextEditingController(text: profile.email ?? '');
+    final phoneController = TextEditingController(text: profile.phone ?? '');
 
-    return SoftCard(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: ListTile(
-        leading: ClayContainer(
-          width: 40, height: 40, borderRadius: 10,
-          color: status == 'ACTIVE' ? (isApproved ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0)) : const Color(0xFFFFEBEE),
-          child: Icon(
-            status == 'ACTIVE' ? Icons.local_taxi_rounded : Icons.block_rounded,
-            color: status == 'ACTIVE' ? (isApproved ? AppTheme.successColor : Colors.orange) : AppTheme.errorColor,
-            size: 20,
-          ),
-        ),
-        title: Text(device['alias'] ?? 'Unidad', style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('Estado: ${status == 'ACTIVE' ? (isApproved ? 'Aprobado' : 'Pendiente') : 'Suspendido'}', style: const TextStyle(fontSize: 10)),
-        trailing: PopupMenuButton<String>(
-          icon: const Icon(Icons.more_horiz_rounded),
-          onSelected: (value) {
-            if (value == 'approve') context.read<AdminBloc>().add(UpdateDeviceStatus(id: id, isApproved: !isApproved));
-            else if (value == 'suspend') context.read<AdminBloc>().add(UpdateDeviceStatus(id: id, status: status == 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'));
-            else if (value == 'delete' && isSuperAdmin) context.read<AdminBloc>().add(DeleteDeviceRequested(id));
-          },
-          itemBuilder: (context) => [
-            PopupMenuItem(value: 'approve', child: Text(isApproved ? 'Quitar Aprobación' : 'Aprobar')),
-            PopupMenuItem(value: 'suspend', child: Text(status == 'ACTIVE' ? 'Suspender' : 'Reactivar')),
-            if (isSuperAdmin) const PopupMenuItem(value: 'delete', child: Text('Eliminar', style: TextStyle(color: AppTheme.errorColor))),
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.backgroundColor,
+        title: const Text('Editar Perfil App'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            YtTextField(controller: nameController, label: 'Nombre Completo'),
+            const SizedBox(height: 12),
+            YtTextField(controller: emailController, label: 'Correo Electrónico'),
+            const SizedBox(height: 12),
+            YtTextField(controller: phoneController, label: 'Teléfono'),
           ],
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
+          AppButton(
+            label: 'Guardar',
+            onPressed: () {
+              if (profile.id != null && nameController.text.isNotEmpty) {
+                context.read<AdminBloc>().add(UpdateAppUserRequested(
+                      id: profile.id!,
+                      name: nameController.text.trim(),
+                      email: emailController.text.trim().isNotEmpty ? emailController.text.trim() : null,
+                      phone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : null,
+                    ));
+                Navigator.pop(dialogContext);
+              }
+            },
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildUserItem(BuildContext context, Map<String, dynamic> user) {
-    final String status = user['status'] ?? 'ACTIVE';
-    final String role = user['role'] ?? 'ADMIN';
-    final String id = user['id'].toString();
-
-    return SoftCard(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: ListTile(
-        leading: Icon(role == 'SUPER_ADMIN' ? Icons.admin_panel_settings_rounded : Icons.person_rounded, color: status == 'ACTIVE' ? Colors.blue : AppTheme.errorColor),
-        title: Text(user['username'] ?? 'Admin', style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('Rol: $role | $status', style: const TextStyle(fontSize: 10)),
-        trailing: role == 'SUPER_ADMIN' ? null : PopupMenuButton<String>(
-          icon: const Icon(Icons.settings_rounded, size: 18),
-          onSelected: (value) {
-            if (value == 'status') context.read<AdminBloc>().add(UpdateUserStatus(id: id, status: status == 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'));
-            else if (value == 'role') context.read<AdminBloc>().add(UpdateUserStatus(id: id, role: role == 'ADMIN' ? 'SUPERVISOR' : 'ADMIN'));
-            else if (value == 'delete') context.read<AdminBloc>().add(DeleteUserRequested(id));
-          },
-          itemBuilder: (context) => [
-            PopupMenuItem(value: 'status', child: Text(status == 'ACTIVE' ? 'Suspender' : 'Reactivar')),
-            PopupMenuItem(value: 'role', child: Text('Cambiar a ${role == 'ADMIN' ? 'Supervisor' : 'Admin'}')),
-            const PopupMenuItem(value: 'delete', child: Text('Eliminar', style: TextStyle(color: AppTheme.errorColor))),
-          ],
-        ),
+  void _confirmDeleteAppUser(BuildContext context, UserProfile profile) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Eliminar Perfil?'),
+        content: Text('¿Seguro que deseas eliminar el usuario "${profile.name}"? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+            onPressed: () {
+              if (profile.id != null) {
+                context.read<AdminBloc>().add(DeleteAppUserRequested(profile.id!));
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
