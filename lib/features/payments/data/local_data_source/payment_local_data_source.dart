@@ -26,18 +26,17 @@ class PaymentLocalDataSourceImpl implements PaymentLocalDataSource {
   Future<int> savePayment(PaymentModel model) async {
     final existing = await db.paymentDao.getAllPayments();
     final isDuplicate = existing.any((p) {
-      final sameSender = p.senderName.trim().toLowerCase() == model.senderName.trim().toLowerCase();
-      final sameAmount = (p.amount - model.amount).abs() < 0.01;
-      final timeDiff = p.createdAt.difference(model.createdAt).inSeconds.abs();
-      return sameSender && sameAmount && timeDiff < 5; // 5 segundos de protección anti-duplicado
+      return p.externalId.isNotEmpty && p.externalId == model.externalId;
     });
 
     if (isDuplicate) {
-      AppLogger.w('PaymentLocalDataSource: Ignorando pago duplicado instantáneo para ${model.senderName} S/ ${model.amount}');
+      AppLogger.w('PaymentLocalDataSource: Ignorando pago con ID idéntico ${model.externalId}');
       return 0;
     }
 
-    return await db.paymentDao.insertPayment(model.toDbCompanion());
+    final id = await db.paymentDao.insertPayment(model.toDbCompanion());
+    AppLogger.i('PaymentLocalDataSource: Pago guardado exitosamente en SQLite [id=$id, sender=${model.senderName}, amount=${model.amount}]');
+    return id;
   }
 
   @override

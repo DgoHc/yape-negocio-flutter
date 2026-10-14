@@ -260,7 +260,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             Pattern.compile("Te\\s+yapeó\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)\\s+(.+)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(.+?)\\s+te\\s+yapeó\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("¡?Te\\s+yapearon!?\\s+(.+?)\\s*[-–]\\s*(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(?:Confirmaci[óo]n\\s+)?(.+?)\s+te\\s+envi[óo]\\s+(?:un\\s+pago\\s+)?(?:por|de)\\s*(?:S/|PEN|S\\./)?\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?:Confirmaci[óo]n\\s+)?(.+?)\\s+te\\s+envi[óo]\\s+(?:un\\s+pago\\s+)?(?:por|de)\\s*(?:S/|PEN|S\\./)?\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(?:Has\\s+recibido|Recibiste)\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)\\s+de\\s+(.+)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(.+?)\\s*[-–]\\s*(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)$", Pattern.CASE_INSENSITIVE)
         )
@@ -293,7 +293,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         }
 
         // FALLBACK INTELIGENTE NATIVO
-        if (amount == null || amount <= 0 || name.isNullOrEmpty()) {
+        if (amount == null || name.isNullOrEmpty()) {
             val matcher = Pattern.compile("(?:S/|PEN|S\\./)?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:soles|PEN|S/)?", Pattern.CASE_INSENSITIVE).matcher(cleanText)
             if (matcher.find()) {
                 val parsedAmount = matcher.group(1)?.replace(",", ".")?.toDoubleOrNull()
@@ -306,14 +306,16 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         }
 
         if (amount != null && amount > 0 && !name.isNullOrEmpty()) {
-            return Pair(name, amount)
+            return Pair(name!!, amount!!)
         }
 
         return null
     }
 
     private fun cleanNativeSenderName(rawName: String): String {
-        var cleaned = rawName
+        val cleaned = rawName
+            .replace(Regex("(?i)\\s+te\\s+(?:envi[óo]|yape[óo]).*$"), "")
+            .replace(Regex("(?i)\\s+(?:por|de)\\s*(?:S/|PEN|S\\./)?\\s*\\d+.*$"), "")
             .replace(Regex("(?i)\\b(?:Confirmaci[óo]n|de|Pago|Yape|Plin|Mi|Banco|Recibiste|un|te|envi[óo]|yape[óo]|por|soles|PEN|S/|Tag\\d*)\\b"), " ")
             .replace(Regex("[*＊#_~^•·¡!]+"), " ")
             .replace(Regex("^[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+"), "")

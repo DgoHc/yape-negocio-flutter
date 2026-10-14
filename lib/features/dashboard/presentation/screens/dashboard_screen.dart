@@ -543,26 +543,29 @@ class _PaymentsListGrouped extends StatelessWidget {
 
   Widget _buildModalRow(String label, String value, {bool isBold = false, Color? valueColor}) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF7A6800),
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Plus Jakarta Sans',
+        Flexible(
+          flex: 2,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF7A6800),
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Plus Jakarta Sans',
+            ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         Expanded(
+          flex: 3,
           child: Text(
             value,
             textAlign: TextAlign.end,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: isBold ? 15 : 13.5,
+              fontSize: isBold ? 14.5 : 13.5,
               fontWeight: isBold ? FontWeight.w900 : FontWeight.w700,
               color: valueColor ?? const Color(0xFF2C2200),
               fontFamily: 'Plus Jakarta Sans',
