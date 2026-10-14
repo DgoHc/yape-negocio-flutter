@@ -77,7 +77,7 @@ class PaymentParser {
     double? amount;
     String? currency = "S/";
 
-    // 3. INTENTAR EXTRAER EL PAGO PRIMERO CON LAS REGLAS REGEX
+    // 3. INTENTAR EXTRAER EL PAGO CON REGLAS ESTRUCTURADAS
     for (final regex in _incomingPaymentRegexes) {
       final match = regex.firstMatch(cleanRaw);
       if (match != null) {
@@ -113,7 +113,20 @@ class PaymentParser {
       }
     }
 
-    // 4. SI NO COINCIDIÓ NINGUNA REGLA DE PAGO, COMPROBAR SI ES SOLO UN MENSAJE DE SEGURIDAD
+    // 4. FALLBACK INTELIGENTE DE SEGURIDAD TOTAL
+    if (senderName == null || amount == null || amount <= 0) {
+      final amountMatch = RegExp(r"(?:S/|PEN|S\./)?\s*(\d+(?:[.,]\d+)?)\s*(?:soles|PEN|S/)?", caseSensitive: false).firstMatch(cleanRaw);
+      if (amountMatch != null) {
+        final parsedAmount = double.tryParse(amountMatch.group(1)?.replaceAll(',', '.') ?? '');
+        if (parsedAmount != null && parsedAmount > 0) {
+          amount = parsedAmount;
+          var rawName = cleanRaw.replaceAll(amountMatch.group(0)!, '').trim();
+          senderName = _cleanSenderName(rawName);
+        }
+      }
+    }
+
+    // 5. SI NO COINCIDIÓ NINGUNA REGLA DE PAGO, COMPROBAR SI ES SOLO UN MENSAJE DE SEGURIDAD
     if (senderName == null || amount == null || amount <= 0) {
       for (final word in _securityKeywords) {
         if (lowerRaw.contains(word)) {
@@ -123,7 +136,7 @@ class PaymentParser {
       return const Left(ServerFailure('Formato no reconocido'));
     }
 
-    // 5. LIMPIEZA AGRESIVA DEL NOMBRE DE REMITENTE
+    // 6. LIMPIEZA AGRESIVA DEL NOMBRE DE REMITENTE
     senderName = _cleanSenderName(senderName);
 
     AppLogger.i('PARSER SUCCESS: $senderName | $amount');
@@ -140,19 +153,25 @@ class PaymentParser {
   static String _cleanSenderName(String name) {
     var cleaned = name;
 
+    // 0. Recortar cualquier frase o verbo de envío que se haya colado al final del nombre
+    cleaned = cleaned
+        .replaceAll(RegExp(r"\s+te\s+(?:envi[óo]|yape[óo]).*$", caseSensitive: false), "")
+        .replaceAll(RegExp(r"\s+(?:envi[óo]|yape[óo])\s+un\s+pago.*$", caseSensitive: false), "")
+        .replaceAll(RegExp(r"\s+(?:por|de)\s*(?:S/|PEN|S\./)?\s*\d+.*$", caseSensitive: false), "")
+        .replaceAll(RegExp(r"\s+El\s+c[óo]d.*$", caseSensitive: false), "");
+
     // 1. Quitar todos los asteriscos, numerales y símbolos especiales
     cleaned = cleaned.replaceAll(RegExp(r'[*＊#_~^•·¡!]+'), ' ');
 
-    // 2. Quitar prefijos comunes de Yape/Plin/MiBanco y frases de sistema
+    // 2. Quitar prefijos comunes de Yape/Plin/MiBanco y frases de sistema al inicio
     cleaned = cleaned.replaceAll(
       RegExp(r"^(?:Confirmaci[óo]n(?:\s+de)?(?:\s+Pago)?(?:\s+Yape!?)?|Mi\s*Banco:?|Yape:?|Plin:?|¡?Te\s+yapearon!?|¡?Recibiste\s+un\s+(?:Yape|Plin)!?)\s*", caseSensitive: false),
       "",
     );
 
-    // 3. Limpieza adicional de "Confirmación" si persiste al inicio del nombre
+    // 3. Limpieza adicional de palabras sueltas de sistema
     cleaned = cleaned
-        .replaceAll(RegExp(r"^Confirmaci[óo]n\s+(?:de\s+)?(?:Pago\s+)?(?:Yape!?)?\s*", caseSensitive: false), "")
-        .replaceAll(RegExp(r"^Yape!|\bYape!\b", caseSensitive: false), "");
+        .replaceAll(RegExp(r"\b(?:Confirmaci[óo]n|de|Pago|Yape|Plin|Mi|Banco|Recibiste|un|te|envi[óo]|yape[óo]|por|soles|PEN|S/|Tag\d*)\b", caseSensitive: false), " ");
 
     // 4. Eliminar cualquier símbolo no alfanumérico sobrante al inicio o final
     cleaned = cleaned.replaceAll(RegExp(r"^[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+"), "");
@@ -161,6 +180,6 @@ class PaymentParser {
     // 5. Colapsar espacios múltiples
     cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
 
-    return cleaned.isEmpty ? "Cliente Yape" : cleaned;
+    return cleaned.isEmpty ? "Cliente" : cleaned;
   }
 }

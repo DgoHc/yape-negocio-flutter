@@ -29,11 +29,11 @@ class PaymentLocalDataSourceImpl implements PaymentLocalDataSource {
       final sameSender = p.senderName.trim().toLowerCase() == model.senderName.trim().toLowerCase();
       final sameAmount = (p.amount - model.amount).abs() < 0.01;
       final timeDiff = p.createdAt.difference(model.createdAt).inSeconds.abs();
-      return sameSender && sameAmount && timeDiff < 180; // 3 minutos de protección anti-duplicado
+      return sameSender && sameAmount && timeDiff < 5; // 5 segundos de protección anti-duplicado
     });
 
     if (isDuplicate) {
-      AppLogger.w('PaymentLocalDataSource: Ignorando pago duplicado para ${model.senderName} S/ ${model.amount}');
+      AppLogger.w('PaymentLocalDataSource: Ignorando pago duplicado instantáneo para ${model.senderName} S/ ${model.amount}');
       return 0;
     }
 

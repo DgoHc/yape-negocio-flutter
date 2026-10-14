@@ -554,13 +554,19 @@ class _PaymentsListGrouped extends StatelessWidget {
             fontFamily: 'Plus Jakarta Sans',
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isBold ? 15 : 13.5,
-            fontWeight: isBold ? FontWeight.w900 : FontWeight.w700,
-            color: valueColor ?? const Color(0xFF2C2200),
-            fontFamily: 'Plus Jakarta Sans',
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: isBold ? 15 : 13.5,
+              fontWeight: isBold ? FontWeight.w900 : FontWeight.w700,
+              color: valueColor ?? const Color(0xFF2C2200),
+              fontFamily: 'Plus Jakarta Sans',
+            ),
           ),
         ),
       ],

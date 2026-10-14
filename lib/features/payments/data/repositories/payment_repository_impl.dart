@@ -77,19 +77,25 @@ class PaymentRepositoryImpl implements PaymentRepository {
         }
 
         final isDetectionEnabled = prefs.getBool('detection_enabled') ?? true;
-        if (!isDetectionEnabled) return;
+        if (!isDetectionEnabled) {
+          AppLogger.w('PaymentRepository: Detección desactivada en ajustes.');
+          return;
+        }
 
         final profileModel = await userProfileDao.getProfile();
-        if (profileModel == null) return;
-        
-        final profile = UserProfileMapper.fromModel(UserProfileModel.fromDb(profileModel));
-        if (!profile.hasAccess) return;
+        if (profileModel != null) {
+          final profile = UserProfileMapper.fromModel(UserProfileModel.fromDb(profileModel));
+          if (!profile.hasAccess) {
+            AppLogger.w('PaymentRepository: Advertencia - Usuario sin acceso activo, pero procesando pago...');
+          }
+        }
 
         final pkg = payload['packageName'] ?? payload['debugPackage'] ?? 'Desconocido';
         final title = payload['rawTitle'] ?? payload['debugTitle'] ?? '';
         final body = payload['rawBody'] ?? payload['debugBody'] ?? '';
         final scraped = payload['scrapedContent'] as String?;
 
+        AppLogger.i('PaymentRepository: Notificación capturada de [$pkg] | Título: "$title" | Cuerpo: "$body"');
         _rawNotificationController.add("App: $pkg\nTítulo: $title\nCuerpo: $body${scraped != null ? '\nScraped: $scraped' : ''}");
 
         String contentToParse = payload['rawBody'] as String? ?? scraped ?? body;

@@ -35,12 +35,19 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
 
     override fun onCreate() {
         super.onCreate()
-        // Iniciar servicio en primer plano INMEDIATAMENTE para evitar que Android considere la app colgada o bloqueada
         try {
             startForegroundService()
-            tts = TextToSpeech(applicationContext, this)
+            initTts()
         } catch (e: Exception) {
             Log.e("SonoPayService", "Error en onCreate del servicio", e)
+        }
+    }
+
+    private fun initTts() {
+        try {
+            tts = TextToSpeech(applicationContext, this)
+        } catch (e: Exception) {
+            Log.e("SonoPayService", "Error inicializando TTS nativo", e)
         }
     }
 
@@ -132,7 +139,14 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
                      packageName.contains("caja", ignoreCase = true) ||
                      packageName.contains("cmac", ignoreCase = true)
 
-        if (!isYape && !isBcp && !isMiBanco && !isPlin) return
+        // SOPORTE PARA PRUEBAS ADB Y SIMULADORES DE NOTIFICACIONES
+        val isTest = packageName.contains("android", ignoreCase = true) || 
+                     packageName.contains("shell", ignoreCase = true) ||
+                     packageName.contains("test", ignoreCase = true) ||
+                     packageName.contains("simulator", ignoreCase = true) ||
+                     packageName.contains("notification", ignoreCase = true)
+
+        if (!isYape && !isBcp && !isMiBanco && !isPlin && !isTest) return
 
         val extras: Bundle = sbnNonNull.notification.extras
         val title = extras.get("android.title")?.toString() ?: ""
@@ -141,14 +155,16 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         val subText = extras.get("android.subText")?.toString() ?: ""
         val tickerText = sbnNonNull.notification.tickerText?.toString() ?: ""
 
-        val fullContent = listOf(text, bigText, subText, tickerText)
+        // CONCATENAR TODOS LOS TEXTOS PARA NO PERDER EL CONTENIDO SI ADB O EL SISTEMA LOS SEPARA
+        val fullContent = listOf(title, text, bigText, subText, tickerText)
             .filter { it.isNotEmpty() }
-            .maxByOrNull { it.length } ?: ""
+            .distinct()
+            .joinToString(" ")
 
         val rawBody = if (fullContent.isNotEmpty()) fullContent else title
-        val lowerText = "$title $rawBody".lowercase()
+        val lowerText = rawBody.lowercase()
 
-        // FILTRO DE PAGOS SALIENTES (ÚNICAMENTE FRASES UNÁMBIGUAS DE ENVÍO)
+        // FILTRO DE PAGOS SALIENTES
         val strictOutgoingKeywords = listOf(
             "enviaste un yape", "yapeaste s/", "yapeaste a ", "le enviaste",
             "transferencia realizada con éxito", "has enviado s/", "pago realizado a ",
@@ -179,14 +195,14 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             } 
         }
 
-        // 2. Si Flutter está CERRADO o ELIMINADO de recientes (eventSink == null),
-        // hablar por la voz nativa de Kotlin e ingresar a la cola
-        if (eventSink == null) {
-            val parsed = parseNativePayment(title, rawBody)
-            if (parsed != null) {
-                val senderName = parsed.first.replace("*", "").replace("#", "").trim()
-                val amount = parsed.second
+        // 2. Procesamiento Nativo de Respaldo (Si Flutter está cerrado o no responde)
+        val parsed = parseNativePayment(title, rawBody)
+        if (parsed != null) {
+            val senderName = parsed.first.replace("*", "").replace("#", "").trim()
+            val amount = parsed.second
 
+            // Si Flutter está cerrado, hablar por voz nativa y guardar en prefs
+            if (eventSink == null) {
                 speakNative("$senderName envió $amount soles")
                 savePendingPaymentToPrefs(senderName, amount, "$title $rawBody")
             }
@@ -195,6 +211,9 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
 
     private fun speakNative(text: String) {
         try {
+            if (tts == null) {
+                initTts()
+            }
             if (isTtsReady && tts != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "sonopay_native_tts")
@@ -202,9 +221,11 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
                     @Suppress("DEPRECATION")
                     tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null)
                 }
+            } else {
+                Log.w("SonoPayService", "TTS nativo no listo aún, reintentando...")
             }
         } catch (e: Exception) {
-            Log.e("SonoPayService", "Error in speakNative", e)
+            Log.e("SonoPayService", "Error en speakNative", e)
         }
     }
 
@@ -232,47 +253,74 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
 
     private fun parseNativePayment(title: String, body: String): Pair<String, Double>? {
         val fullText = "$title $body".replace("\n", " ").trim()
-        
+        val cleanText = fullText.replace(Regex("(?i)\\.\\s*El\\s+c[óo]d(?:\\.|igo)?\\s+de\\s+seguridad\\s+es:?.*$"), "").trim()
+
         val patterns = listOf(
             Pattern.compile("Confirmaci[óo]n\\s+de\\s+Pago\\s+(?:Yape!?\\s*)?(.+?)\\s*[-–]?\\s*(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("Te\\s+yapeó\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)\\s+(.+)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(.+?)\\s+te\\s+yapeó\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("¡?Te\\s+yapearon!?\\s+(.+?)\\s*[-–]\\s*(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(?:Confirmaci[óo]n\\s+)?(.+?)\\s+te\\s+envi[óo]\\s+(?:un\\s+pago\\s+)?(?:por|de)\\s*(?:S/|PEN|S\\./)?\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?:Confirmaci[óo]n\\s+)?(.+?)\s+te\\s+envi[óo]\\s+(?:un\\s+pago\\s+)?(?:por|de)\\s*(?:S/|PEN|S\\./)?\\s*(\\d+(?:[.,]\\d+)?)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(?:Has\\s+recibido|Recibiste)\\s+(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)\\s+de\\s+(.+)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(.+?)\\s*[-–]\\s*(?:S/|PEN|S\\./)\\s*(\\d+(?:[.,]\\d+)?)$", Pattern.CASE_INSENSITIVE)
         )
 
+        var name: String? = null
+        var amount: Double? = null
+
         for (pattern in patterns) {
-            val matcher = pattern.matcher(fullText)
+            val matcher = pattern.matcher(cleanText)
             if (matcher.find()) {
                 try {
                     val group1 = matcher.group(1)?.trim() ?: ""
                     val group2 = matcher.group(2)?.trim() ?: ""
 
-                    var amount = group1.replace(",", ".").toDoubleOrNull()
-                    var name = group2
+                    var parsedAmount = group1.replace(",", ".").toDoubleOrNull()
+                    var parsedName = group2
 
-                    if (amount == null) {
-                        amount = group2.replace(",", ".").toDoubleOrNull()
-                        name = group1
+                    if (parsedAmount == null) {
+                        parsedAmount = group2.replace(",", ".").toDoubleOrNull()
+                        parsedName = group1
                     }
 
-                    if (amount != null && amount > 0 && name.isNotEmpty()) {
-                        name = name
-                            .replace(Regex("(?i)^(?:Confirmaci[óo]n(?:\\s+de)?(?:\\s+Pago)?(?:\\s+Yape!?)?|Mi\\s*Banco:?|Yape:?|Plin:?|¡?Te\\s+yapearon!?|¡?Recibiste\\s+un\\s+(?:Yape|Plin)!?)\\s*"), "")
-                            .replace(Regex("(?i)^Confirmaci[óo]n\\s+(?:de\\s+)?(?:Pago\\s+)?(?:Yape!?)?\\s*"), "")
-                            .replace(Regex("(?i)^Yape!|\\bYape!\\b"), "")
-                            .replace(Regex("[*＊#_~^•·¡!]+"), " ")
-                            .replace(Regex("[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+$"), "")
-                            .trim()
-                        if (name.isEmpty()) name = "Cliente"
-                        return Pair(name, amount)
+                    if (parsedAmount != null && parsedAmount > 0 && parsedName.isNotEmpty()) {
+                        amount = parsedAmount
+                        name = cleanNativeSenderName(parsedName)
+                        break
                     }
                 } catch (_: Exception) {}
             }
         }
+
+        // FALLBACK INTELIGENTE NATIVO
+        if (amount == null || amount <= 0 || name.isNullOrEmpty()) {
+            val matcher = Pattern.compile("(?:S/|PEN|S\\./)?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:soles|PEN|S/)?", Pattern.CASE_INSENSITIVE).matcher(cleanText)
+            if (matcher.find()) {
+                val parsedAmount = matcher.group(1)?.replace(",", ".")?.toDoubleOrNull()
+                if (parsedAmount != null && parsedAmount > 0) {
+                    amount = parsedAmount
+                    val rawName = cleanText.replace(matcher.group(0) ?: "", "")
+                    name = cleanNativeSenderName(rawName)
+                }
+            }
+        }
+
+        if (amount != null && amount > 0 && !name.isNullOrEmpty()) {
+            return Pair(name, amount)
+        }
+
         return null
+    }
+
+    private fun cleanNativeSenderName(rawName: String): String {
+        var cleaned = rawName
+            .replace(Regex("(?i)\\b(?:Confirmaci[óo]n|de|Pago|Yape|Plin|Mi|Banco|Recibiste|un|te|envi[óo]|yape[óo]|por|soles|PEN|S/|Tag\\d*)\\b"), " ")
+            .replace(Regex("[*＊#_~^•·¡!]+"), " ")
+            .replace(Regex("^[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+"), "")
+            .replace(Regex("[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+$"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        return if (cleaned.isEmpty()) "Cliente" else cleaned
     }
 
     override fun onDestroy() {
