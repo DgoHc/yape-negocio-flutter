@@ -7,12 +7,11 @@ import '../entities/payment_data.dart';
 @lazySingleton
 class PaymentParser {
   static final List<String> _securityKeywords = [
-    "código de seguridad",
+    "código de seguridad para iniciar",
     "clave de acceso",
     "iniciaste sesión",
-    "tu clave es",
-    "seguridad es",
-    "intento de inicio",
+    "tu clave secreta es",
+    "intento de inicio de sesión",
   ];
 
   static final List<String> _outgoingKeywords = [
@@ -59,7 +58,7 @@ class PaymentParser {
 
     final lowerRaw = raw.toLowerCase();
 
-    // 1. FILTRAR NOTIFICACIONES DE PAGOS SALIENTES (CUANDO EL USUARIO ENVÍA DINERO)
+    // 1. FILTRAR NOTIFICACIONES DE PAGOS SALIENTES
     for (final word in _outgoingKeywords) {
       if (lowerRaw.contains(word)) {
         AppLogger.w('PaymentParser: Ignorando notificación de pago saliente: "$raw"');
@@ -67,19 +66,18 @@ class PaymentParser {
       }
     }
 
-    // 2. FILTRAR MENSAJES DE SEGURIDAD
-    for (final word in _securityKeywords) {
-      if (lowerRaw.contains(word)) {
-        return const Left(ServerFailure('Seguridad ignorada'));
-      }
-    }
+    // 2. LIMPIAR SUFIJO DE SEGURIDAD DE YAPE ("El cód. de seguridad es: XXX")
+    var cleanRaw = raw
+        .replaceAll(RegExp(r"\.\s*El\s+c[óo]d(?:\.|igo)?\s+de\s+seguridad\s+es:?.*$", caseSensitive: false), "")
+        .replaceAll(RegExp(r'[\r\n|]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
 
-    final cleanRaw = raw.replaceAll(RegExp(r'[\r\n|]+'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
-    
     String? senderName;
     double? amount;
     String? currency = "S/";
 
+    // 3. INTENTAR EXTRAER EL PAGO PRIMERO CON LAS REGLAS REGEX
     for (final regex in _incomingPaymentRegexes) {
       final match = regex.firstMatch(cleanRaw);
       if (match != null) {
@@ -115,11 +113,17 @@ class PaymentParser {
       }
     }
 
+    // 4. SI NO COINCIDIÓ NINGUNA REGLA DE PAGO, COMPROBAR SI ES SOLO UN MENSAJE DE SEGURIDAD
     if (senderName == null || amount == null || amount <= 0) {
+      for (final word in _securityKeywords) {
+        if (lowerRaw.contains(word)) {
+          return const Left(ServerFailure('Seguridad ignorada'));
+        }
+      }
       return const Left(ServerFailure('Formato no reconocido'));
     }
 
-    // LIMPIEZA AGRESIVA DEL NOMBRE DE REMITENTE Y ELIMINACIÓN DE ASTERISCOS/SÍMBOLOS
+    // 5. LIMPIEZA AGRESIVA DEL NOMBRE DE REMITENTE
     senderName = _cleanSenderName(senderName);
 
     AppLogger.i('PARSER SUCCESS: $senderName | $amount');
