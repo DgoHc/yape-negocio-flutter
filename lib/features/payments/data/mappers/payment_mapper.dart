@@ -1,12 +1,12 @@
-
 import '../dtos/payment_dto.dart';
 import '../models/payment_models.dart';
 import '../../../notifications/domain/entities/payment_data.dart';
+import '../../../notifications/domain/parsers/payment_parser.dart';
 
 class PaymentMapper {
   static PaymentData fromModel(PaymentModel model) {
     return PaymentData(
-      senderName: model.senderName,
+      senderName: PaymentParser.cleanSenderName(model.senderName),
       amount: model.amount,
       currency: model.currency,
       rawText: model.rawText ?? '',
@@ -17,7 +17,7 @@ class PaymentMapper {
 
   static PaymentData fromDto(PaymentDto dto) {
     return PaymentData(
-      senderName: dto.senderName,
+      senderName: PaymentParser.cleanSenderName(dto.senderName.isNotEmpty ? dto.senderName : (dto.rawText ?? 'Cliente')),
       amount: dto.amount,
       currency: dto.currency,
       rawText: dto.rawText ?? '',
@@ -28,7 +28,7 @@ class PaymentMapper {
 
   static PaymentModel toModel(PaymentData entity, String externalId, bool isSynced) {
     return PaymentModel(
-      senderName: entity.senderName,
+      senderName: PaymentParser.cleanSenderName(entity.senderName),
       amount: entity.amount,
       currency: entity.currency,
       externalId: externalId,
@@ -41,7 +41,7 @@ class PaymentMapper {
 
   static PaymentDto toDto(PaymentData entity, String externalId, String deviceId) {
     return PaymentDto(
-      senderName: entity.senderName,
+      senderName: PaymentParser.cleanSenderName(entity.senderName),
       amount: entity.amount,
       currency: entity.currency,
       externalId: externalId,

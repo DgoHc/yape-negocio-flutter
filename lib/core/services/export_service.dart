@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:injectable/injectable.dart';
+import '../../core/utils/app_logger.dart';
 import '../../features/notifications/domain/entities/payment_data.dart';
 import '../../features/auth/domain/entities/user_profile.dart';
 
@@ -163,17 +165,32 @@ class ExportService {
   }
 
   Future<void> _saveAndOpenExcel(Excel excel, String prefix) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final now = DateTime.now();
-    final fileName = '${prefix}_${now.day}${now.month}${now.year}_${now.hour}${now.minute}.xlsx';
-    final filePath = '${directory.path}/$fileName';
+    try {
+      final directory = await getTemporaryDirectory();
+      final now = DateTime.now();
+      final fileName = '${prefix}_${now.day}${now.month}${now.year}_${now.hour}${now.minute}.xlsx';
+      final filePath = '${directory.path}/$fileName';
 
-    final fileBytes = excel.encode();
-    if (fileBytes != null) {
-      File(filePath)
-        ..createSync(recursive: true)
-        ..writeAsBytesSync(fileBytes);
-      await OpenFilex.open(filePath);
+      final fileBytes = excel.encode();
+      if (fileBytes != null) {
+        final file = File(filePath);
+        await file.create(recursive: true);
+        await file.writeAsBytes(fileBytes);
+
+        AppLogger.i('ExportService: Reporte Excel generado en $filePath');
+
+        // Intento 1: Abrir archivo directamente con visor Excel instalado
+        final openResult = await OpenFilex.open(filePath);
+        if (openResult.type != ResultType.done) {
+          // Intento 2: Compartir / Guardar mediante la hoja del sistema
+          await Share.shareXFiles(
+            [XFile(filePath)],
+            text: 'Reporte Excel de Pagos - SonoPay',
+          );
+        }
+      }
+    } catch (e) {
+      AppLogger.e('ExportService: Error exportando Excel', e);
     }
   }
 }

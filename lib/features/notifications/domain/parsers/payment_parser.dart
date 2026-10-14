@@ -121,7 +121,7 @@ class PaymentParser {
         if (parsedAmount != null && parsedAmount > 0) {
           amount = parsedAmount;
           var rawName = cleanRaw.replaceAll(amountMatch.group(0)!, '').trim();
-          senderName = _cleanSenderName(rawName);
+          senderName = cleanSenderName(rawName);
         }
       }
     }
@@ -137,7 +137,7 @@ class PaymentParser {
     }
 
     // 6. LIMPIEZA AGRESIVA DEL NOMBRE DE REMITENTE
-    senderName = _cleanSenderName(senderName);
+    senderName = cleanSenderName(senderName);
 
     AppLogger.i('PARSER SUCCESS: $senderName | $amount');
 
@@ -150,7 +150,7 @@ class PaymentParser {
     ));
   }
 
-  static String _cleanSenderName(String name) {
+  static String cleanSenderName(String name) {
     var cleaned = name;
 
     // 0. Recortar cualquier frase o verbo de envío que se haya colado al final del nombre
