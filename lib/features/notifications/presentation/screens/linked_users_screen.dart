@@ -89,12 +89,18 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
             return name.contains(query) || email.contains(query);
           }).toList();
 
+          final pendingRequests = state.linkRequests?.where((req) {
+            final isPending = req.status.toLowerCase() == 'pending';
+            final isReceiver = req.receiverId == currentUserId;
+            return isPending && isReceiver;
+          }).toList() ?? [];
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. BUSCADOR EN VINCULACIONES ACTIVAS
+                // 1. BUSCADOR DE SOCIOS
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -106,7 +112,7 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                     controller: _searchController,
                     onChanged: (val) => setState(() => _searchQuery = val.trim()),
                     decoration: const InputDecoration(
-                      hintText: 'Buscar socio vinculado por Nombre y Apellido...',
+                      hintText: 'Buscar socio por Nombre, Apellido o Código...',
                       hintStyle: TextStyle(fontSize: 13, color: AppTheme.textPlaceholder),
                       prefixIcon: Icon(Icons.search_rounded, color: Color(0xFFFFCD19)),
                       border: InputBorder.none,
@@ -114,6 +120,53 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                     ),
                   ),
                 ),
+
+                if (_searchQuery.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  SoftCard(
+                    color: const Color(0xFFFFF8D6),
+                    child: Row(
+                      children: [
+                        const CircleAvatar(
+                          backgroundColor: Color(0xFFFFCD19),
+                          child: Icon(Icons.person_search_rounded, color: Color(0xFF2C2200), size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _searchQuery,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const Text('Vincular con este socio', style: TextStyle(fontSize: 11, color: Color(0xFF7A6800))),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFCD19),
+                            foregroundColor: const Color(0xFF2C2200),
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                          ),
+                          onPressed: () {
+                            context.read<NotificationBloc>().add(SendLinkRequest(_searchQuery));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Solicitud enviada a "$_searchQuery"'), backgroundColor: AppTheme.successColor),
+                            );
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                          child: const Text('Vincular', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 20),
 
@@ -126,22 +179,20 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                         onTap: () => setState(() => _showCodeInput = !_showCodeInput),
                         borderRadius: BorderRadius.circular(16),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.person_add_rounded, color: Color(0xFF7A6800), size: 22),
-                                SizedBox(width: 10),
-                                Text(
-                                  'Ingresar Código de Socio o Escanear QR',
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF2C2200),
-                                    fontFamily: 'Plus Jakarta Sans',
-                                  ),
+                            const Icon(Icons.person_add_rounded, color: Color(0xFF7A6800), size: 22),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Ingresar Código o Escanear QR',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF2C2200),
+                                  fontFamily: 'Plus Jakarta Sans',
                                 ),
-                              ],
+                              ),
                             ),
                             Icon(
                               _showCodeInput ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
@@ -193,61 +244,45 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                 const SizedBox(height: 28),
 
                 // 3. SOLICITUDES PENDIENTES
-                Builder(
-                  builder: (context) {
-                    final pendingRequests = state.linkRequests?.where((req) {
-                          final isPending = req.status.toLowerCase() == 'pending';
-                          final isReceiver = req.receiverId == currentUserId;
-                          return isPending && isReceiver;
-                        }).toList() ??
-                        [];
-
-                    if (pendingRequests.isEmpty) return const SizedBox.shrink();
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Solicitudes Pendientes',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-                        ),
-                        const SizedBox(height: 14),
-                        for (final request in pendingRequests)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10.0),
-                            child: SoftCard(
-                              child: Row(
+                if (pendingRequests.isNotEmpty) ...[
+                  Text(
+                    'Solicitudes Pendientes',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 14),
+                  for (final request in pendingRequests)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10.0),
+                      child: SoftCard(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(request.sender?['name'] ?? 'Usuario', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                        if (request.sender?['email'] != null) Text(request.sender!['email'], style: const TextStyle(fontSize: 12)),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.check_circle_rounded, color: AppTheme.successColor),
-                                    onPressed: () {
-                                      context.read<NotificationBloc>().add(AcceptLinkRequest(request.id));
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.cancel_rounded, color: AppTheme.errorColor),
-                                    onPressed: () {
-                                      context.read<NotificationBloc>().add(RejectLinkRequest(request.id));
-                                    },
-                                  ),
+                                  Text(request.sender?['name'] ?? 'Usuario', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  if (request.sender?['email'] != null) Text(request.sender!['email'], style: const TextStyle(fontSize: 12)),
                                 ],
                               ),
                             ),
-                          ),
-                        const SizedBox(height: 28),
-                      ],
-                    );
-                  },
-                ),
+                            IconButton(
+                              icon: const Icon(Icons.check_circle_rounded, color: AppTheme.successColor),
+                              onPressed: () {
+                                context.read<NotificationBloc>().add(AcceptLinkRequest(request.id));
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.cancel_rounded, color: AppTheme.errorColor),
+                              onPressed: () {
+                                context.read<NotificationBloc>().add(RejectLinkRequest(request.id));
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 28),
+                ],
 
                 // 4. VINCULACIONES ACTIVAS
                 Row(
