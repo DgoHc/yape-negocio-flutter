@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/yt_design_system.dart';
@@ -31,7 +32,7 @@ class LinkedUsersView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(title: const Text('Usuarios Vinculados')),
+      appBar: AppBar(title: const Text('Vinculación de Cuentas')),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -40,7 +41,7 @@ class LinkedUsersView extends StatelessWidget {
           );
         },
         backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add, color: Color(0xFF3D2E00)),
+        child: const Icon(Icons.add_rounded, color: Color(0xFF3D2E00)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
@@ -50,16 +51,102 @@ class LinkedUsersView extends StatelessWidget {
               return const Center(child: YtLoader());
             }
 
-            if (state.errorMessage != null) {
-              return Text(
-                state.errorMessage!,
-                style: const TextStyle(color: AppTheme.errorColor),
-              );
-            }
-
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // --- TARJETA DE MI CÓDIGO DE SOCIO ---
+                BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, authState) {
+                    final profile = authState.userProfile;
+                    final code = profile?.notificationCode ?? profile?.id?.substring(0, 8).toUpperCase() ?? 'SONO-8899';
+
+                    return SoftCard(
+                      color: const Color(0xFFFFF8D6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.qr_code_2_rounded, color: Color(0xFF7A6800), size: 24),
+                              SizedBox(width: 10),
+                              Text(
+                                'Mi Código de Socio',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF2C2200),
+                                  fontFamily: 'Plus Jakarta Sans',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Comparte este código con tu socio o conductor para vincular notificaciones:',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF7A6800)),
+                          ),
+                          const SizedBox(height: 14),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFFFCD19)),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  code,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 2,
+                                    color: Color(0xFF2C2200),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy_rounded, color: Color(0xFF7A6800)),
+                                  tooltip: 'Copiar Código',
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: code));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Código copiado al portapapeles')),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+                              label: const Text('Ingresar Código o Buscar Socio'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFFCD19),
+                                foregroundColor: const Color(0xFF2C2200),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const AddLinkScreen()),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 28),
+
+                // --- SOLICITUDES PENDIENTES ---
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, authState) {
                     final currentUserId = authState.userProfile?.id;
@@ -116,6 +203,7 @@ class LinkedUsersView extends StatelessWidget {
                   },
                 ),
 
+                // --- VINCULACIONES ACTIVAS ---
                 Text(
                   'Vinculaciones Activas',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
@@ -123,8 +211,8 @@ class LinkedUsersView extends StatelessWidget {
                 const SizedBox(height: 16),
                 if (state.linkedUsers == null || state.linkedUsers!.isEmpty)
                   const Center(child: Padding(
-                    padding: EdgeInsets.all(40.0),
-                    child: Text('No hay usuarios vinculados', style: TextStyle(color: AppTheme.textPlaceholder)),
+                    padding: EdgeInsets.all(32.0),
+                    child: Text('No tienes socios vinculados aún.', style: TextStyle(color: AppTheme.textPlaceholder)),
                   )),
                 if (state.linkedUsers != null && state.linkedUsers!.isNotEmpty)
                   ...state.linkedUsers!.map((link) {
@@ -142,7 +230,7 @@ class LinkedUsersView extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(otherUser['name'] ?? 'Usuario', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(otherUser['name'] ?? 'Usuario Socio', style: const TextStyle(fontWeight: FontWeight.bold)),
                                   if (otherUser['email'] != null) Text(otherUser['email'], style: const TextStyle(fontSize: 12)),
                                   const SizedBox(height: 8),
                                   Row(
