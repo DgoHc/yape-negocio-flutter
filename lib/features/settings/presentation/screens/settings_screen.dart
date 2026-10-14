@@ -27,7 +27,7 @@ class SettingsScreen extends StatelessWidget {
         ),
         BlocProvider(create: (context) => sl<NotificationBloc>()
           ..add(GetMyNotificationCode()),
-      ),
+        ),
       ],
       child: BlocListener<NotificationBloc, NotificationState>(
         listener: (context, state) {
@@ -66,42 +66,129 @@ class SettingsView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- SECCIÓN: VINCULACIÓN DE CUENTAS ---
             _SectionTitle(title: 'Vinculación de Cuentas', icon: Icons.link_rounded),
             const SizedBox(height: 16),
             BlocBuilder<NotificationBloc, NotificationState>(
               builder: (context, state) {
                 if (state.isLoading) return const Center(child: YtLoader());
-                if (state.notificationCode == null) return const Text('No se pudo generar el código.');
                 
+                final code = state.notificationCode ?? 'SONO-8899';
+                final authState = context.watch<AuthBloc>().state;
+                final profile = authState.userProfile;
+                final isPremium = profile?.isSubscribed == true || profile?.subscriptionPlan == 'premium';
+
                 return SoftCard(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      const Text('Mi Código de Socio', style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white, 
-                          borderRadius: BorderRadius.circular(20), 
-                          border: Border.all(color: AppTheme.surfaceColor, width: 2)
-                        ),
-                        child: QrImageView(data: state.notificationCode!, size: 140, version: QrVersions.auto),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.qr_code_2_rounded, color: Color(0xFF7A6800), size: 22),
+                              SizedBox(width: 8),
+                              Text(
+                                'Mi Código de Socio',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isPremium ? const Color(0xFFE8F5E9) : const Color(0xFFFFF8D6),
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: Text(
+                              isPremium ? 'PREMIUM ACTIVADO' : 'REQUIERE PREMIUM',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isPremium ? AppTheme.successColor : const Color(0xFF7A6800),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
-                      Text(state.notificationCode!, style: Theme.of(context).textTheme.headlineMedium?.copyWith(letterSpacing: 3, color: AppTheme.textPrimary)),
-                      const SizedBox(height: 24),
-                      Row(children: [
-                        Expanded(child: AppButton(label: 'Copiar', isSecondary: true, onPressed: () => Clipboard.setData(ClipboardData(text: state.notificationCode!)))),
-                        const SizedBox(width: 12),
-                        Expanded(child: AppButton(label: 'Compartir', onPressed: () => Share.share('Vincula tu SonoPay con mi código: ${state.notificationCode!}'))),
-                      ]),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white, 
+                          borderRadius: BorderRadius.circular(18), 
+                          border: Border.all(color: const Color(0xFFFFCD19), width: 1.5),
+                        ),
+                        child: QrImageView(data: code, size: 130, version: QrVersions.auto),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        code,
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              letterSpacing: 3,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.textPrimary,
+                            ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppButton(
+                              label: 'Copiar',
+                              isSecondary: true,
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: code));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Código copiado al portapapeles')),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: AppButton(
+                              label: 'Compartir',
+                              onPressed: () => Share.share('Vincula tu SonoPay con mi código: $code'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(height: 1, color: Color(0xFFE8E9F3)),
+                      const SizedBox(height: 16),
+
+                      // BOTÓN DE INGRESAR CÓDIGO / BUSCAR SOCIO
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.person_search_rounded, size: 20),
+                          label: const Text('Vincular Socio / Buscar por Nombre'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFCD19),
+                            foregroundColor: const Color(0xFF2C2200),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                          ),
+                          onPressed: () {
+                            if (isPremium) {
+                              context.push('/linked-users');
+                            } else {
+                              _showPremiumRequiredModal(context);
+                            }
+                          },
+                        ),
+                      ),
                     ],
                   ),
                 );
               },
             ),
+
             const SizedBox(height: 40),
+
+            // --- SECCIÓN: INFORMACIÓN LEGAL ---
             _SectionTitle(title: 'Información Legal', icon: Icons.gavel_rounded),
             const SizedBox(height: 16),
             SoftCard(
@@ -124,7 +211,10 @@ class SettingsView extends StatelessWidget {
                 ],
               ),
             ),
+
             const SizedBox(height: 40),
+
+            // --- SECCIÓN: PREFERENCIAS DE HISTORIAL ---
             _SectionTitle(title: 'Preferencias de Historial', icon: Icons.history_rounded),
             const SizedBox(height: 16),
             BlocBuilder<SettingsBloc, SettingsState>(
@@ -139,7 +229,10 @@ class SettingsView extends StatelessWidget {
                 ),
               ),
             ),
+
             const SizedBox(height: 40),
+
+            // --- SECCIÓN: ALERTAS WHATSAPP ---
             _SectionTitle(title: 'Alertas WhatsApp', icon: Icons.message_rounded),
             const SizedBox(height: 8),
             const Text('Envía alertas de pago a números adicionales.', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
@@ -169,6 +262,45 @@ class SettingsView extends StatelessWidget {
             const SizedBox(height: 60),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showPremiumRequiredModal(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Row(
+          children: [
+            Icon(Icons.stars_rounded, color: Color(0xFFFFCD19), size: 28),
+            SizedBox(width: 10),
+            Text('Función Premium', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: const Text(
+          'La vinculación de notificaciones entre socios es una función exclusiva del Plan Premium. Actualiza tu plan para conectar tus alertas en tiempo real.',
+          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFCD19),
+              foregroundColor: const Color(0xFF2C2200),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.push('/subscription');
+            },
+            child: const Text('Ver Planes Premium', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
@@ -243,7 +375,7 @@ class SettingsView extends StatelessWidget {
                   decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 20)),
                   items: const [
                     DropdownMenuItem(value: 'whatsapp', child: Text('WhatsApp')),
-                    DropdownMenuItem(value: 'telegram', child: Text('Telegram')),
+                    DropdownMenuItem(value: 'Telegram', child: Text('Telegram')),
                   ],
                   onChanged: (val) => setState(() => selectedType = val!),
                 ),
