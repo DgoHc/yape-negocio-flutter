@@ -212,9 +212,8 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
                         ),
                         const SizedBox(height: 14),
-                        ...pendingRequests.map((request) {
-                          final user = request.sender ?? {'name': 'Usuario'};
-                          return Padding(
+                        for (final request in pendingRequests)
+                          Padding(
                             padding: const EdgeInsets.only(bottom: 10.0),
                             child: SoftCard(
                               child: Row(
@@ -223,8 +222,8 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(user['name'] ?? 'Usuario', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                        if (user['email'] != null) Text(user['email'], style: const TextStyle(fontSize: 12)),
+                                        Text(request.sender?['name'] ?? 'Usuario', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        if (request.sender?['email'] != null) Text(request.sender!['email'], style: const TextStyle(fontSize: 12)),
                                       ],
                                     ),
                                   ),
@@ -243,8 +242,7 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                                 ],
                               ),
                             ),
-                          );
-                        }),
+                          ),
                         const SizedBox(height: 28),
                       ],
                     );
@@ -275,82 +273,85 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                     ),
                   )
                 else
-                  ...filteredLinks.map((link) {
-                    final isSource = link.sourceId == currentUserId;
-                    final otherUser = isSource ? (link.target ?? {}) : (link.source ?? {});
-
-                    return Padding(
+                  for (final link in filteredLinks)
+                    Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: SoftCard(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(otherUser['name'] ?? 'Usuario Socio', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  if (otherUser['email'] != null) Text(otherUser['email'], style: const TextStyle(fontSize: 12)),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: link.status == 'active' ? AppTheme.successColor.withValues(alpha: 0.1) : AppTheme.textPlaceholder.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          link.status == 'active' ? 'ACTIVO' : 'SUSPENDIDO', 
-                                          style: TextStyle(color: link.status == 'active' ? AppTheme.successColor : AppTheme.textPlaceholder, fontSize: 10, fontWeight: FontWeight.bold)
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Socio desde: ${_formatDate(link.linkedAt)}',
-                                        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert_rounded),
-                              onSelected: (value) {
-                                if (value == 'suspend') {
-                                  context.read<NotificationBloc>().add(UpdateLink(linkId: link.id, status: 'suspended'));
-                                } else if (value == 'activate') {
-                                  context.read<NotificationBloc>().add(UpdateLink(linkId: link.id, status: 'active'));
-                                } else if (value == 'delete') {
-                                  _showDeleteConfirmDialog(context, link);
-                                }
-                              },
-                              itemBuilder: (context) => [
-                                if (link.status == 'active')
-                                  const PopupMenuItem(
-                                    value: 'suspend',
-                                    child: Text('Suspender'),
-                                  ),
-                                if (link.status != 'active')
-                                  const PopupMenuItem(
-                                    value: 'activate',
-                                    child: Text('Reactivar'),
-                                  ),
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Eliminar vinculación', style: TextStyle(color: AppTheme.errorColor)),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
+                      child: _buildUserCard(context, link, currentUserId),
+                    ),
               ],
-            );
-          },
-        ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildUserCard(BuildContext context, UserLink link, String? currentUserId) {
+    final isSource = link.sourceId == currentUserId;
+    final otherUser = isSource ? (link.target ?? {}) : (link.source ?? {});
+
+    return SoftCard(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(otherUser['name'] ?? 'Usuario Socio', style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (otherUser['email'] != null) Text(otherUser['email'], style: const TextStyle(fontSize: 12)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: link.status == 'active' ? AppTheme.successColor.withValues(alpha: 0.1) : AppTheme.textPlaceholder.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        link.status == 'active' ? 'ACTIVO' : 'SUSPENDIDO', 
+                        style: TextStyle(color: link.status == 'active' ? AppTheme.successColor : AppTheme.textPlaceholder, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Socio desde: ${_formatDate(link.linkedAt)}',
+                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            onSelected: (value) {
+              if (value == 'suspend') {
+                context.read<NotificationBloc>().add(UpdateLink(linkId: link.id, status: 'suspended'));
+              } else if (value == 'activate') {
+                context.read<NotificationBloc>().add(UpdateLink(linkId: link.id, status: 'active'));
+              } else if (value == 'delete') {
+                _showDeleteConfirmDialog(context, link);
+              }
+            },
+            itemBuilder: (context) => [
+              if (link.status == 'active')
+                const PopupMenuItem(
+                  value: 'suspend',
+                  child: Text('Suspender'),
+                ),
+              if (link.status != 'active')
+                const PopupMenuItem(
+                  value: 'activate',
+                  child: Text('Reactivar'),
+                ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Eliminar vinculación', style: TextStyle(color: AppTheme.errorColor)),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
