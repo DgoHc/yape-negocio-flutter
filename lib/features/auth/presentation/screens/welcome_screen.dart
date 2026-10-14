@@ -19,7 +19,13 @@ class WelcomeScreen extends StatelessWidget {
         } else if (state.status == AuthStatus.needsVerification) {
           context.go('/verify-email');
         } else if (state.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error!), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.error!),
+              backgroundColor: AppTheme.errorColor,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
           context.read<AuthBloc>().add(const ClearError());
         }
       },
@@ -29,54 +35,117 @@ class WelcomeScreen extends StatelessWidget {
           children: [
             const BrandBlobHeader(height: 380, child: SizedBox.shrink()),
             SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40.0),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 40), // Reducido de 60
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(22),
-                        decoration: const BoxDecoration(
-                          color: Colors.white, 
-                          shape: BoxShape.circle, 
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12, 
-                              blurRadius: 25, 
-                              offset: Offset(0, 5) // Reducido de 10 para centrar visualmente
-                            )
-                          ]
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: IntrinsicHeight(
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 32),
+                            Center(
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black12,
+                                      blurRadius: 25,
+                                      offset: Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(Icons.payments_rounded, size: 70, color: AppTheme.primaryColor),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'SonoPay',
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                    fontSize: 44,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                  ),
+                            ),
+                            const Spacer(),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: Text(
+                                'Detección inteligente de pagos por voz en tiempo real.',
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.3,
+                                    ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Text(
+                                'La herramienta definitiva para comerciantes y transportistas.',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: AppTheme.textPlaceholder,
+                                      height: 1.4,
+                                    ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            BlocBuilder<AuthBloc, AuthState>(
+                              builder: (context, state) {
+                                final isLoading = state.status == AuthStatus.loading;
+                                return Column(
+                                  children: [
+                                    AppButton(
+                                      label: 'Iniciar Sesión',
+                                      onPressed: isLoading ? null : () => context.go('/login'),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    AppButton(
+                                      label: 'Continuar con Google',
+                                      isSecondary: true,
+                                      isLoading: isLoading,
+                                      onPressed: isLoading ? null : () => context.read<AuthBloc>().add(const GoogleLoginRequested()),
+                                      prefixWidget: isLoading
+                                          ? null
+                                          : Image.network(
+                                              'https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png',
+                                              height: 20,
+                                              width: 20,
+                                              errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata_rounded, size: 24),
+                                            ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 24),
+                            TextButton(
+                              onPressed: () => context.go('/register'),
+                              child: const Text(
+                                'Crear una cuenta nueva',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                         ),
-                        child: const Icon(Icons.payments_rounded, size: 75, color: AppTheme.primaryColor),
                       ),
                     ),
-                    const SizedBox(height: 24), // Reducido de 32
-                    Text('SonoPay', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 48, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
-                    const Spacer(),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text('Detección inteligente de pagos por voz en tiempo real.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppTheme.textSecondary, fontSize: 18, fontWeight: FontWeight.w600, height: 1.3), textAlign: TextAlign.center),
-                    ),
-                    const SizedBox(height: 16), // Ajustado
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Text('La herramienta definitiva para comerciantes y transportistas.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textPlaceholder, height: 1.4), textAlign: TextAlign.center),
-                    ),
-                    const SizedBox(height: 40), // Reducido de 48
-                    BlocBuilder<AuthBloc, AuthState>(builder: (context, state) {
-                      final isLoading = state.status == AuthStatus.loading;
-                      return Column(children: [
-                        AppButton(label: 'Iniciar Sesión', onPressed: isLoading ? null : () => context.go('/login')),
-                        const SizedBox(height: 18),
-                        AppButton(label: 'Continuar con Google', isSecondary: true, isLoading: isLoading, onPressed: isLoading ? null : () => context.read<AuthBloc>().add(const GoogleLoginRequested()), prefixWidget: isLoading ? null : Image.network('https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png', height: 20, width: 20)),
-                      ]);
-                    }),
-                    const SizedBox(height: 32),
-                    TextButton(onPressed: () => context.go('/register'), child: Text('Crear una cuenta nueva', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, decoration: TextDecoration.underline))),
-                    const SizedBox(height: 40),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ],
