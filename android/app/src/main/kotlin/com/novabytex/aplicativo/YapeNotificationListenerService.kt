@@ -126,8 +126,16 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         val sbnNonNull = sbn ?: return
         val packageName = sbnNonNull.packageName ?: ""
-        
-        val isYape = packageName.contains("yape", ignoreCase = true)
+
+        // 1. VERIFICAR SI LA DETECCIÓN FUE PAUSADA DESDE FLUTTER PARA AHORRAR 100% BATERÍA
+        try {
+            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val isDetectionEnabled = flutterPrefs.getBoolean("flutter.detection_enabled", true)
+            if (!isDetectionEnabled) return
+        } catch (_: Exception) {}
+
+        // 2. LISTA BLANCA ESTRICTA DE APPS FINANCIERAS EN PERÚ Y COMANDO ADB
+        val isYape = packageName.equals("com.bcp.innovacxion.yapeapp", ignoreCase = true) || packageName.contains("yape", ignoreCase = true)
         val isBcp = packageName.contains("bcp", ignoreCase = true)
         val isMiBanco = packageName.contains("mibanco", ignoreCase = true) || packageName.contains("mi.banco", ignoreCase = true)
         val isPlin = packageName.contains("bbva", ignoreCase = true) || 
@@ -139,14 +147,11 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
                      packageName.contains("caja", ignoreCase = true) ||
                      packageName.contains("cmac", ignoreCase = true)
 
-        // SOPORTE PARA PRUEBAS ADB Y SIMULADORES DE NOTIFICACIONES
-        val isTest = packageName.contains("android", ignoreCase = true) || 
-                     packageName.contains("shell", ignoreCase = true) ||
-                     packageName.contains("test", ignoreCase = true) ||
-                     packageName.contains("simulator", ignoreCase = true) ||
-                     packageName.contains("notification", ignoreCase = true)
+        val isAdbShell = packageName.equals("com.android.shell", ignoreCase = true) ||
+                         packageName.contains("notification_simulator", ignoreCase = true) ||
+                         packageName.contains("notification_tester", ignoreCase = true)
 
-        if (!isYape && !isBcp && !isMiBanco && !isPlin && !isTest) return
+        if (!isYape && !isBcp && !isMiBanco && !isPlin && !isAdbShell) return
 
         val extras: Bundle = sbnNonNull.notification.extras
         val title = extras.get("android.title")?.toString() ?: ""
@@ -155,7 +160,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         val subText = extras.get("android.subText")?.toString() ?: ""
         val tickerText = sbnNonNull.notification.tickerText?.toString() ?: ""
 
-        // CONCATENAR TODOS LOS TEXTOS PARA NO PERDER EL CONTENIDO SI ADB O EL SISTEMA LOS SEPARA
+        // CONCATENAR TODOS LOS TEXTOS PARA NO PERDER EL CONTENIDO
         val fullContent = listOf(title, text, bigText, subText, tickerText)
             .filter { it.isNotEmpty() }
             .distinct()
@@ -163,6 +168,13 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
 
         val rawBody = if (fullContent.isNotEmpty()) fullContent else title
         val lowerText = rawBody.lowercase()
+
+        // SI ES COMANDO ADB, EXIGIR QUE CONTENGA UNA PALABRA CLAVE DE PAGO
+        if (isAdbShell) {
+            val containsPaymentKeyword = listOf("yape", "plin", "banco", "pago", "recibiste", "envió", "enviado", "yapeó", "s/", "soles", "pen")
+                .any { lowerText.contains(it) }
+            if (!containsPaymentKeyword) return
+        }
 
         // FILTRO DE PAGOS SALIENTES
         val strictOutgoingKeywords = listOf(
@@ -292,12 +304,15 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
             }
         }
 
-        // FALLBACK INTELIGENTE NATIVO
+        // FALLBACK INTELIGENTE NATIVO CON PALABRAS CLAVE DE PAGO EXIGIDAS
         if (amount == null || name.isNullOrEmpty()) {
             val matcher = Pattern.compile("(?:S/|PEN|S\\./)?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:soles|PEN|S/)?", Pattern.CASE_INSENSITIVE).matcher(cleanText)
             if (matcher.find()) {
                 val parsedAmount = matcher.group(1)?.replace(",", ".")?.toDoubleOrNull()
-                if (parsedAmount != null && parsedAmount > 0) {
+                val lowerClean = cleanText.lowercase()
+                val hasPaymentContext = listOf("yape", "plin", "banco", "pago", "recibiste", "envió", "yapeó", "soles", "s/").any { lowerClean.contains(it) }
+                
+                if (parsedAmount != null && parsedAmount > 0 && hasPaymentContext) {
                     amount = parsedAmount
                     val rawName = cleanText.replace(matcher.group(0) ?: "", "")
                     name = cleanNativeSenderName(rawName)

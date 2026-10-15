@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/yt_design_system.dart';
@@ -678,33 +679,61 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: isDetectionActive ? const Color(0xFFCCD642) : const Color(0xFFFF8A80),
-        borderRadius: BorderRadius.circular(100),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          _PulsingDot(
-            color: isDetectionActive ? const Color(0xFF00E676) : Colors.white,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              isDetectionActive ? 'Notificaciones activas' : 'Detección pausada',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: isDetectionActive ? const Color(0xFF2E4D00) : Colors.white,
-                fontFamily: 'Plus Jakarta Sans',
+    return InkWell(
+      onTap: () async {
+        final newStatus = !isDetectionActive;
+        final prefs = sl<SharedPreferences>();
+        await prefs.setBool('detection_enabled', newStatus);
+        if (context.mounted) {
+          context.read<SettingsBloc>().add(ToggleDetection(newStatus));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                newStatus
+                    ? 'Detección por Voz ACTIVADA (Escuchando pagos)'
+                    : 'Detección PAUSADA (Ahorro de batería activo)',
+              ),
+              backgroundColor: newStatus ? const Color(0xFF00893E) : const Color(0xFF7A6800),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(100),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: isDetectionActive ? const Color(0xFFCCD642) : const Color(0xFFFF8A80),
+          borderRadius: BorderRadius.circular(100),
+          boxShadow: AppTheme.softProShadow(intensity: 0.3),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            _PulsingDot(
+              color: isDetectionActive ? const Color(0xFF00E676) : Colors.white,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                isDetectionActive ? 'Notificaciones activas (Toca para pausar)' : 'Detección pausada (Toca para activar)',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: isDetectionActive ? const Color(0xFF2E4D00) : Colors.white,
+                  fontFamily: 'Plus Jakarta Sans',
+                ),
               ),
             ),
-          ),
-        ],
+            Icon(
+              isDetectionActive ? Icons.power_settings_new_rounded : Icons.play_arrow_rounded,
+              size: 20,
+              color: isDetectionActive ? const Color(0xFF2E4D00) : Colors.white,
+            ),
+          ],
+        ),
       ),
     );
   }
