@@ -207,10 +207,12 @@ class PaymentRepositoryImpl implements PaymentRepository {
       if (connectivityBloc.state.status == ConnectivityStatus.connected) {
         try {
           final remoteResult = await remoteDataSource.getPayments();
+          final deviceId = await deviceInfoService.getDeviceUUID() ?? '';
           await remoteResult.fold(
             (_) async {},
             (remoteDtos) async {
-              for (final dto in remoteDtos) {
+              final myDeviceDtos = remoteDtos.where((dto) => dto.deviceId == null || dto.deviceId == deviceId).toList();
+              for (final dto in myDeviceDtos) {
                 final model = PaymentMapper.toModel(
                   PaymentMapper.fromDto(dto),
                   dto.externalId,

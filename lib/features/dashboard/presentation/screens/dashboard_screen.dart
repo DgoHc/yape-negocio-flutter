@@ -287,7 +287,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                               const SizedBox(height: 12),
 
                               // 6. LISTA SEPARADA POR SECCIÓN ("HOY" Y "ANTERIORES")
-                              if (paymentsState.status == PaymentsStatus.loading)
+                              if (paymentsState.status == PaymentsStatus.loading && paymentsState.payments.isEmpty)
                                 const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 36.0),
                                   child: Center(

@@ -64,7 +64,10 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
 
   Future<void> _onLoadPayments(
       LoadPayments event, Emitter<PaymentsState> emit) async {
-    emit(state.copyWith(status: PaymentsStatus.loading));
+    // Solo emitir estado de carga si no hay pagos locales visibles
+    if (state.payments.isEmpty) {
+      emit(state.copyWith(status: PaymentsStatus.loading));
+    }
     
     final result = await _paymentRepository.getPayments();
     
@@ -72,7 +75,7 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
       (failure) {
         AppLogger.e('PaymentsBloc: Error al cargar pagos: ${failure.message}');
         emit(state.copyWith(
-          status: PaymentsStatus.failure,
+          status: PaymentsStatus.success, // Mantener datos locales sin bloquear la pantalla
           error: failure.message,
         ));
       },
@@ -122,7 +125,6 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
 
   Future<void> _onExportPayments(
       ExportPayments event, Emitter<PaymentsState> emit) async {
-    emit(state.copyWith(status: PaymentsStatus.loading));
     final result = await _paymentRepository.getPayments();
 
     await result.fold(
@@ -143,7 +145,6 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
 
   Future<void> _onSaveManualPayment(
       SaveManualPayment event, Emitter<PaymentsState> emit) async {
-    emit(state.copyWith(status: PaymentsStatus.loading));
     final result = await _paymentRepository.savePayment(event.payment);
     
     result.fold(
@@ -166,7 +167,6 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
 
   Future<void> _onClearOldPayments(
       ClearOldPayments event, Emitter<PaymentsState> emit) async {
-    emit(state.copyWith(status: PaymentsStatus.loading));
     final result = await _paymentRepository.clearOldPayments(event.days);
     
     result.fold(
@@ -177,7 +177,6 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
 
   Future<void> _onClearAllPaymentsRequested(
       ClearAllPaymentsRequested event, Emitter<PaymentsState> emit) async {
-    emit(state.copyWith(status: PaymentsStatus.loading));
     final result = await _paymentRepository.deleteAllPayments();
     
     result.fold(

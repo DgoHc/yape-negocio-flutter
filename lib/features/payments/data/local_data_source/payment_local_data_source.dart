@@ -29,12 +29,12 @@ class PaymentLocalDataSourceImpl implements PaymentLocalDataSource {
       final sameExternalId = p.externalId.isNotEmpty && p.externalId == model.externalId;
       final sameSender = p.senderName.trim().toLowerCase() == model.senderName.trim().toLowerCase();
       final sameAmount = (p.amount - model.amount).abs() < 0.01;
-      final sameTime = p.createdAt.difference(model.createdAt).inSeconds.abs() < 3;
+      final sameTime = p.createdAt.difference(model.createdAt).inSeconds.abs() < 60; // 60s de protección anti-duplicado por sincronización
       return sameExternalId || (sameSender && sameAmount && sameTime);
     });
 
     if (isDuplicate) {
-      AppLogger.w('PaymentLocalDataSource: Ignorando duplicado de pago idéntico en menos de 3s para ${model.senderName} S/ ${model.amount}');
+      AppLogger.w('PaymentLocalDataSource: Ignorando duplicado de pago idéntico en menos de 60s para ${model.senderName} S/ ${model.amount}');
       return 0;
     }
 
