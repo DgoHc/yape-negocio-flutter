@@ -24,11 +24,11 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     GetMyNotificationCode event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.getMyNotificationCode();
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (code) => emit(state.copyWith(isLoading: false, notificationCode: code)),
+      (code) => emit(state.copyWith(isLoading: false, clearError: true, notificationCode: code)),
     );
   }
 
@@ -36,12 +36,12 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     SendLinkRequest event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.sendLinkRequest(event.code);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
       (_) {
-        emit(state.copyWith(isLoading: false));
+        emit(state.copyWith(isLoading: false, clearError: true));
         add(GetLinkRequests());
       },
     );
@@ -51,11 +51,11 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     GetLinkRequests event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.getLinkRequests();
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (requests) => emit(state.copyWith(isLoading: false, linkRequests: requests)),
+      (requests) => emit(state.copyWith(isLoading: false, clearError: true, linkRequests: requests)),
     );
   }
 
@@ -63,12 +63,12 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     AcceptLinkRequest event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.acceptLinkRequest(event.requestId);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
       (_) {
-        emit(state.copyWith(isLoading: false));
+        emit(state.copyWith(isLoading: false, clearError: true));
         add(GetLinkRequests());
         add(GetLinkedUsers());
       },
@@ -79,12 +79,12 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     RejectLinkRequest event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.rejectLinkRequest(event.requestId);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
       (_) {
-        emit(state.copyWith(isLoading: false));
+        emit(state.copyWith(isLoading: false, clearError: true));
         add(GetLinkRequests());
       },
     );
@@ -94,11 +94,11 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     GetLinkedUsers event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.getLinkedUsers();
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (links) => emit(state.copyWith(isLoading: false, linkedUsers: links)),
+      (links) => emit(state.copyWith(isLoading: false, clearError: true, linkedUsers: links)),
     );
   }
 
@@ -106,12 +106,12 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     UpdateLink event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.updateLink(event.linkId, event.alias, event.status);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
       (_) {
-        emit(state.copyWith(isLoading: false));
+        emit(state.copyWith(isLoading: false, clearError: true));
         add(GetLinkedUsers());
       },
     );
@@ -121,12 +121,12 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     DeleteLink event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.deleteLink(event.linkId);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
       (_) {
-        emit(state.copyWith(isLoading: false));
+        emit(state.copyWith(isLoading: false, clearError: true));
         add(GetLinkedUsers());
       },
     );
@@ -136,11 +136,11 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     RegisterFcmToken event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.registerFcmToken(event.token, event.deviceId, event.deviceName);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (_) => emit(state.copyWith(isLoading: false)),
+      (_) => emit(state.copyWith(isLoading: false, clearError: true)),
     );
   }
 }

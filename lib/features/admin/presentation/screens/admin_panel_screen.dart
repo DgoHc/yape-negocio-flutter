@@ -350,10 +350,10 @@ class AdminPanelView extends StatelessWidget {
   }
 
   Widget _buildDeviceItem(BuildContext context, dynamic device, bool isSuperAdmin) {
-    final id = device.id?.toString() ?? '';
-    final uuid = device.uuid ?? '';
-    final alias = device.alias ?? 'Sin alias';
-    final isApproved = device.isApproved ?? false;
+    final id = device is Map ? (device['id']?.toString() ?? '') : (device.id?.toString() ?? '');
+    final uuid = device is Map ? (device['uuid']?.toString() ?? '') : (device.uuid?.toString() ?? '');
+    final alias = device is Map ? (device['alias']?.toString() ?? 'Sin alias') : (device.alias?.toString() ?? 'Sin alias');
+    final isApproved = device is Map ? (device['isApproved'] == true) : (device.isApproved == true);
 
     return SoftCard(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),

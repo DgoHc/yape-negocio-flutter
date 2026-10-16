@@ -1,4 +1,3 @@
-
 import '../../domain/entities/notification_link_entities.dart';
 
 class NotificationState {
@@ -21,6 +20,7 @@ class NotificationState {
   NotificationState copyWith({
     bool? isLoading,
     String? errorMessage,
+    bool clearError = false,
     String? notificationCode,
     Map<String, dynamic>? foundUser,
     List<LinkRequest>? linkRequests,
@@ -28,7 +28,7 @@ class NotificationState {
   }) {
     return NotificationState(
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       notificationCode: notificationCode ?? this.notificationCode,
       foundUser: foundUser ?? this.foundUser,
       linkRequests: linkRequests ?? this.linkRequests,
