@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import '../../domain/entities/notification_link_entities.dart';
 import '../../domain/repositories/notification_repository.dart';
 import 'notification_event.dart';
 import 'notification_state.dart';
@@ -64,15 +65,15 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     Emitter<NotificationState> emit,
   ) async {
     emit(state.copyWith(isLoading: true, clearError: true));
-    final result = await _repository.acceptLinkRequest(event.requestId);
-    result.fold(
-      (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (_) {
-        emit(state.copyWith(isLoading: false, clearError: true));
-        add(GetLinkRequests());
-        add(GetLinkedUsers());
-      },
-    );
+    await _repository.acceptLinkRequest(event.requestId);
+    
+    // Optimistic UI Update: Remover inmediatamente de la lista en pantalla
+    final updatedRequests = List<LinkRequest>.from(state.linkRequests ?? [])
+      ..removeWhere((r) => r.id == event.requestId);
+    emit(state.copyWith(isLoading: false, clearError: true, linkRequests: updatedRequests));
+
+    add(GetLinkRequests());
+    add(GetLinkedUsers());
   }
 
   Future<void> _onRejectLinkRequest(
@@ -80,14 +81,14 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     Emitter<NotificationState> emit,
   ) async {
     emit(state.copyWith(isLoading: true, clearError: true));
-    final result = await _repository.rejectLinkRequest(event.requestId);
-    result.fold(
-      (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (_) {
-        emit(state.copyWith(isLoading: false, clearError: true));
-        add(GetLinkRequests());
-      },
-    );
+    await _repository.rejectLinkRequest(event.requestId);
+
+    // Optimistic UI Update: Remover inmediatamente de la lista en pantalla
+    final updatedRequests = List<LinkRequest>.from(state.linkRequests ?? [])
+      ..removeWhere((r) => r.id == event.requestId);
+    emit(state.copyWith(isLoading: false, clearError: true, linkRequests: updatedRequests));
+
+    add(GetLinkRequests());
   }
 
   Future<void> _onGetLinkedUsers(

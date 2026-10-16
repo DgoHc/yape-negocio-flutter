@@ -327,7 +327,13 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     result.fold(
       (failure) => emit(state.copyWith(status: AdminStatus.failure, error: failure.message)),
       (_) {
-        emit(state.copyWith(status: AdminStatus.success, message: 'Perfil eliminado con éxito'));
+        final updatedProfiles = List<UserProfile>.from(state.userProfiles)
+          ..removeWhere((p) => p.id == event.id || p.email == event.id || p.uuid == event.id);
+        emit(state.copyWith(
+          status: AdminStatus.success,
+          message: 'Perfil eliminado con éxito',
+          userProfiles: updatedProfiles,
+        ));
         add(LoadUserProfiles());
       },
     );
