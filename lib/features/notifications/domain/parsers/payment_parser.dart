@@ -37,7 +37,6 @@ class PaymentParser {
     RegExp(r"Nuevo\s+pago\s+de\s+(.+?)\s+por\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
     RegExp(r"Has\s+recibido\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+de\s+(.+)", caseSensitive: false),
     RegExp(r"Recibiste\s+(S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)\s+de\s+(.+)", caseSensitive: false),
-    RegExp(r"^(.+?)\s*[-–]\s*(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)$", caseSensitive: false),
 
     // FORMATOS MI BANCO & CAJAS
     RegExp(r"Mi\s*Banco:?\s*(?:Confirmaci[óo]n\s+)?(.+?)\s+te\s+envi[óo]\s+(?:un\s+pago\s+)?(?:por|de)?\s*(?:S/|PEN|S\./)?\s*(\d+(?:[.,]\d+)?)", caseSensitive: false),
@@ -113,12 +112,15 @@ class PaymentParser {
       }
     }
 
-    // 4. FALLBACK INTELIGENTE DE SEGURIDAD TOTAL
+    // 4. FALLBACK EXIGES PALABRAS CLAVE Y SÍMBOLO MONEDA
     if (senderName == null || amount == null || amount <= 0) {
-      final amountMatch = RegExp(r"(?:S/|PEN|S\./)?\s*(\d+(?:[.,]\d+)?)\s*(?:soles|PEN|S/)?", caseSensitive: false).firstMatch(cleanRaw);
+      final amountMatch = RegExp(r"(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false).firstMatch(cleanRaw);
       if (amountMatch != null) {
         final parsedAmount = double.tryParse(amountMatch.group(1)?.replaceAll(',', '.') ?? '');
-        if (parsedAmount != null && parsedAmount > 0) {
+        final hasPaymentKeyword = ["yape", "plin", "banco", "pago", "recibiste", "envió", "enviado", "yapeó", "soles"]
+            .any((verb) => lowerRaw.contains(verb));
+            
+        if (parsedAmount != null && parsedAmount > 0 && hasPaymentKeyword) {
           amount = parsedAmount;
           var rawName = cleanRaw.replaceAll(amountMatch.group(0)!, '').trim();
           senderName = cleanSenderName(rawName);
