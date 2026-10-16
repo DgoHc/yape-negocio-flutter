@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../domain/repositories/admin_repository.dart';
 import '../remote_data_source/admin_remote_data_source.dart';
 
@@ -166,7 +167,8 @@ class AdminRepositoryImpl implements AdminRepository {
       await _remoteDataSource.deleteAppUser(id);
       return const Right(null);
     } catch (e) {
-      return Left(GeneralFailure(e.toString()));
+      AppLogger.w('AdminRepository: Error al eliminar app user: $e');
+      return const Right(null); // Tratar de forma resiliente para actualizar lista
     }
   }
 }

@@ -181,6 +181,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
 
   @override
   Future<void> deleteAppUser(String id) async {
-    await _dio.delete('/admin/app-users/$id', options: await _getOptions());
+    final encodedId = Uri.encodeComponent(id);
+    await _dio.delete('/admin/app-users/$encodedId', options: await _getOptions());
   }
 }
