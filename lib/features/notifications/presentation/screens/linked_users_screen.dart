@@ -55,6 +55,16 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2C2200)),
+            tooltip: 'Actualizar lista',
+            onPressed: () {
+              context.read<NotificationBloc>().add(GetLinkRequests());
+              context.read<NotificationBloc>().add(GetLinkedUsers());
+            },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => setState(() => _showCodeInput = !_showCodeInput),
@@ -75,13 +85,16 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
           }
 
           final authBloc = context.read<AuthBloc>();
-          final currentUserId = authBloc.state.userProfile?.id;
+          final profile = authBloc.state.userProfile;
+          final currentUserId = profile?.id;
+          final currentUserUuid = profile?.uuid;
+          final currentUserEmail = profile?.email?.toLowerCase();
 
           final activeLinks = state.linkedUsers ?? [];
           
           final filteredLinks = activeLinks.where((link) {
             if (_searchQuery.isEmpty) return true;
-            final isSource = link.sourceId == currentUserId;
+            final isSource = link.sourceId == currentUserId || (currentUserUuid != null && link.sourceId == currentUserUuid);
             final otherUser = isSource ? (link.target ?? {}) : (link.source ?? {});
             final name = (otherUser['name'] ?? '').toString().toLowerCase();
             final email = (otherUser['email'] ?? '').toString().toLowerCase();
@@ -89,10 +102,24 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
             return name.contains(query) || email.contains(query);
           }).toList();
 
-          final pendingRequests = state.linkRequests?.where((req) {
+          // Solicitudes Recibidas (Para Aceptar o Rechazar)
+          final receivedRequests = state.linkRequests?.where((req) {
             final isPending = req.status.toLowerCase() == 'pending';
-            final isReceiver = req.receiverId == currentUserId;
+            final isReceiver = (req.receiverId == currentUserId) ||
+                               (currentUserUuid != null && req.receiverId == currentUserUuid) ||
+                               (currentUserEmail != null && req.receiver?['email']?.toString().toLowerCase() == currentUserEmail) ||
+                               (req.receiver?['id']?.toString() == currentUserId);
             return isPending && isReceiver;
+          }).toList() ?? [];
+
+          // Solicitudes Enviadas (Esperando respuesta del socio)
+          final sentRequests = state.linkRequests?.where((req) {
+            final isPending = req.status.toLowerCase() == 'pending';
+            final isSender = (req.senderId == currentUserId) ||
+                             (currentUserUuid != null && req.senderId == currentUserUuid) ||
+                             (currentUserEmail != null && req.sender?['email']?.toString().toLowerCase() == currentUserEmail) ||
+                             (req.sender?['id']?.toString() == currentUserId);
+            return isPending && isSender;
           }).toList() ?? [];
 
           return SingleChildScrollView(
@@ -184,7 +211,7 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                             const SizedBox(width: 8),
                             const Expanded(
                               child: Text(
-                                'Ingresar Código o Escanear QR',
+                                'Ingresar Código de Socio o Escanear QR',
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 13,
@@ -222,6 +249,9 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                                 onPressed: () {
                                   if (_codeController.text.isNotEmpty) {
                                     context.read<NotificationBloc>().add(SendLinkRequest(_codeController.text.trim()));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Solicitud enviada a "${_codeController.text.trim()}"'), backgroundColor: AppTheme.successColor),
+                                    );
                                     _codeController.clear();
                                     setState(() => _showCodeInput = false);
                                   }
@@ -243,14 +273,20 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
 
                 const SizedBox(height: 28),
 
-                // 3. SOLICITUDES PENDIENTES
-                if (pendingRequests.isNotEmpty) ...[
-                  Text(
-                    'Solicitudes Pendientes',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                // 3. SOLICITUDES RECIBIDAS (PARA ACEPTAR / RECHAZAR)
+                if (receivedRequests.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.mark_email_unread_rounded, color: Color(0xFFFFCD19), size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Solicitudes Recibidas (${receivedRequests.length})',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 14),
-                  for (final request in pendingRequests)
+                  for (final request in receivedRequests)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10.0),
                       child: SoftCard(
@@ -260,17 +296,25 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(request.sender?['name'] ?? 'Usuario', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(request.sender?['name'] ?? 'Socio', style: const TextStyle(fontWeight: FontWeight.bold)),
                                   if (request.sender?['email'] != null) Text(request.sender!['email'], style: const TextStyle(fontSize: 12)),
                                 ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.check_circle_rounded, color: AppTheme.successColor),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.successColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                              ),
+                              icon: const Icon(Icons.check_rounded, size: 16),
+                              label: const Text('Aceptar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                               onPressed: () {
                                 context.read<NotificationBloc>().add(AcceptLinkRequest(request.id));
                               },
                             ),
+                            const SizedBox(width: 6),
                             IconButton(
                               icon: const Icon(Icons.cancel_rounded, color: AppTheme.errorColor),
                               onPressed: () {
@@ -284,7 +328,51 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                   const SizedBox(height: 28),
                 ],
 
-                // 4. VINCULACIONES ACTIVAS
+                // 4. SOLICITUDES ENVIADAS (PENDIENTES DE RESPUESTA)
+                if (sentRequests.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.outbox_rounded, color: Color(0xFF7A6800), size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Solicitudes Enviadas (${sentRequests.length})',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  for (final request in sentRequests)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10.0),
+                      child: SoftCard(
+                        color: const Color(0xFFFAFAFA),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(request.receiver?['name'] ?? 'Socio Destino', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  const Text('Esperando que el socio acepte...', style: TextStyle(fontSize: 11, color: Color(0xFF7A6800))),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF8D6),
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                              child: const Text('PENDIENTE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF7A6800))),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 28),
+                ],
+
+                // 5. VINCULACIONES ACTIVAS
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -311,7 +399,7 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
                   for (final link in filteredLinks)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _buildUserCard(context, link, currentUserId),
+                      child: _buildUserCard(context, link, currentUserId, currentUserUuid),
                     ),
               ],
             ),
@@ -321,8 +409,8 @@ class _LinkedUsersViewState extends State<LinkedUsersView> {
     );
   }
 
-  Widget _buildUserCard(BuildContext context, UserLink link, String? currentUserId) {
-    final isSource = link.sourceId == currentUserId;
+  Widget _buildUserCard(BuildContext context, UserLink link, String? currentUserId, String? currentUserUuid) {
+    final isSource = link.sourceId == currentUserId || (currentUserUuid != null && link.sourceId == currentUserUuid);
     final otherUser = isSource ? (link.target ?? {}) : (link.source ?? {});
 
     return SoftCard(

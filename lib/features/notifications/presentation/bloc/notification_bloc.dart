@@ -1,4 +1,3 @@
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import '../../domain/repositories/notification_repository.dart';
@@ -41,7 +40,10 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     final result = await _repository.sendLinkRequest(event.code);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (_) => emit(state.copyWith(isLoading: false)),
+      (_) {
+        emit(state.copyWith(isLoading: false));
+        add(GetLinkRequests());
+      },
     );
   }
 
@@ -65,11 +67,12 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     final result = await _repository.acceptLinkRequest(event.requestId);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (_) => emit(state.copyWith(isLoading: false)),
+      (_) {
+        emit(state.copyWith(isLoading: false));
+        add(GetLinkRequests());
+        add(GetLinkedUsers());
+      },
     );
-    // Refresh the link requests and linked users
-    add(GetLinkRequests());
-    add(GetLinkedUsers());
   }
 
   Future<void> _onRejectLinkRequest(
@@ -80,9 +83,11 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     final result = await _repository.rejectLinkRequest(event.requestId);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (_) => emit(state.copyWith(isLoading: false)),
+      (_) {
+        emit(state.copyWith(isLoading: false));
+        add(GetLinkRequests());
+      },
     );
-    add(GetLinkRequests());
   }
 
   Future<void> _onGetLinkedUsers(
@@ -105,9 +110,11 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     final result = await _repository.updateLink(event.linkId, event.alias, event.status);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (_) => emit(state.copyWith(isLoading: false)),
+      (_) {
+        emit(state.copyWith(isLoading: false));
+        add(GetLinkedUsers());
+      },
     );
-    add(GetLinkedUsers());
   }
 
   Future<void> _onDeleteLink(
@@ -118,9 +125,11 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     final result = await _repository.deleteLink(event.linkId);
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
-      (_) => emit(state.copyWith(isLoading: false)),
+      (_) {
+        emit(state.copyWith(isLoading: false));
+        add(GetLinkedUsers());
+      },
     );
-    add(GetLinkedUsers());
   }
 
   Future<void> _onRegisterFcmToken(
