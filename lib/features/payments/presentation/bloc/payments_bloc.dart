@@ -64,7 +64,6 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
 
   Future<void> _onLoadPayments(
       LoadPayments event, Emitter<PaymentsState> emit) async {
-    // Solo emitir estado de carga si no hay pagos locales visibles
     if (state.payments.isEmpty) {
       emit(state.copyWith(status: PaymentsStatus.loading));
     }
@@ -75,7 +74,7 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
       (failure) {
         AppLogger.e('PaymentsBloc: Error al cargar pagos: ${failure.message}');
         emit(state.copyWith(
-          status: PaymentsStatus.success, // Mantener datos locales sin bloquear la pantalla
+          status: PaymentsStatus.success,
           error: failure.message,
         ));
       },
@@ -181,7 +180,13 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
     
     result.fold(
       (failure) => emit(state.copyWith(status: PaymentsStatus.failure, error: failure.message)),
-      (_) => add(LoadPayments()),
+      (_) {
+        emit(state.copyWith(
+          status: PaymentsStatus.success,
+          payments: const [],
+          dailyTotal: 0.0,
+        ));
+      },
     );
   }
 

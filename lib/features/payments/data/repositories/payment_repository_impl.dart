@@ -199,11 +199,11 @@ class PaymentRepositoryImpl implements PaymentRepository {
   @override
   Future<Either<Failure, List<PaymentData>>> getPayments() async {
     try {
-      // 1. Obtener pagos locales de SQLite (Drift) - FUENTE PRINCIPAL E INDELEBLE DE VERDAD
+      // 1. Obtener pagos locales de SQLite (Drift)
       final modelPayments = await localDataSource.getAllPayments();
       var domainPayments = modelPayments.map((m) => PaymentMapper.fromModel(m)).toList();
 
-      // 2. Si hay conexión a internet, sincronizar de forma segura con la nube
+      // 2. Si hay conexión a internet, sincronizar pagos desde el servidor backend (nube)
       if (connectivityBloc.state.status == ConnectivityStatus.connected) {
         try {
           final remoteResult = await remoteDataSource.getPayments();
@@ -227,7 +227,14 @@ class PaymentRepositoryImpl implements PaymentRepository {
         }
       }
 
-      // Ordenar los pagos por fecha descendente (los más recientes primero)
+      // 3. Filtrar los pagos según la última fecha de borrado explícito de historial
+      final lastClearedMillis = prefs.getInt('history_last_cleared_at') ?? 0;
+      if (lastClearedMillis > 0) {
+        final lastClearedDate = DateTime.fromMillisecondsSinceEpoch(lastClearedMillis);
+        domainPayments = domainPayments.where((p) => p.parsedAt.isAfter(lastClearedDate)).toList();
+      }
+
+      // Ordenar los pagos por fecha descendente
       domainPayments.sort((a, b) => b.parsedAt.compareTo(a.parsedAt));
 
       return Right(domainPayments);
@@ -294,7 +301,9 @@ class PaymentRepositoryImpl implements PaymentRepository {
   Future<Either<Failure, void>> deleteAllPayments() async {
     try {
       await paymentDao.deleteAllPayments();
-      await prefs.remove('history_last_cleared_at');
+      final nowMillis = DateTime.now().millisecondsSinceEpoch;
+      await prefs.setInt('history_last_cleared_at', nowMillis);
+      AppLogger.i('PaymentRepository: Historial borrado por completo en marca de tiempo $nowMillis');
       return const Right(null);
     } catch (e) {
       return Left(DatabaseFailure(e.toString()));
