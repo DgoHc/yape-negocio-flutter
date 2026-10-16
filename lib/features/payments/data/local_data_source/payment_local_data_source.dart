@@ -26,15 +26,11 @@ class PaymentLocalDataSourceImpl implements PaymentLocalDataSource {
   Future<int> savePayment(PaymentModel model) async {
     final existing = await db.paymentDao.getAllPayments();
     final isDuplicate = existing.any((p) {
-      final sameExternalId = p.externalId.isNotEmpty && p.externalId == model.externalId;
-      final sameSender = p.senderName.trim().toLowerCase() == model.senderName.trim().toLowerCase();
-      final sameAmount = (p.amount - model.amount).abs() < 0.01;
-      final sameTime = p.createdAt.difference(model.createdAt).inSeconds.abs() < 60; // 60s de protección anti-duplicado por sincronización
-      return sameExternalId || (sameSender && sameAmount && sameTime);
+      return p.externalId.isNotEmpty && p.externalId == model.externalId;
     });
 
     if (isDuplicate) {
-      AppLogger.w('PaymentLocalDataSource: Ignorando duplicado de pago idéntico en menos de 60s para ${model.senderName} S/ ${model.amount}');
+      AppLogger.w('PaymentLocalDataSource: Ignorando duplicado de pago idéntico por ID externo ${model.externalId}');
       return 0;
     }
 

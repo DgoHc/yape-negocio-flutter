@@ -199,20 +199,18 @@ class PaymentRepositoryImpl implements PaymentRepository {
   @override
   Future<Either<Failure, List<PaymentData>>> getPayments() async {
     try {
-      // 1. Obtener pagos locales de SQLite (Drift)
+      // 1. Obtener pagos locales de SQLite (Drift) - FUENTE PRINCIPAL E INDELEBLE DE VERDAD
       final modelPayments = await localDataSource.getAllPayments();
       var domainPayments = modelPayments.map((m) => PaymentMapper.fromModel(m)).toList();
 
-      // 2. Si hay conexión a internet, sincronizar pagos desde el servidor backend (nube)
+      // 2. Si hay conexión a internet, sincronizar de forma segura con la nube
       if (connectivityBloc.state.status == ConnectivityStatus.connected) {
         try {
           final remoteResult = await remoteDataSource.getPayments();
-          final deviceId = await deviceInfoService.getDeviceUUID() ?? '';
           await remoteResult.fold(
             (_) async {},
             (remoteDtos) async {
-              final myDeviceDtos = remoteDtos.where((dto) => dto.deviceId == null || dto.deviceId == deviceId).toList();
-              for (final dto in myDeviceDtos) {
+              for (final dto in remoteDtos) {
                 final model = PaymentMapper.toModel(
                   PaymentMapper.fromDto(dto),
                   dto.externalId,
@@ -229,14 +227,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
         }
       }
 
-      // 3. Filtrar los pagos según la última fecha de borrado de historial local
-      final lastClearedMillis = prefs.getInt('history_last_cleared_at') ?? 0;
-      if (lastClearedMillis > 0) {
-        final lastClearedDate = DateTime.fromMillisecondsSinceEpoch(lastClearedMillis);
-        domainPayments = domainPayments.where((p) => p.parsedAt.isAfter(lastClearedDate)).toList();
-      }
-
-      // Ordenar los pagos por fecha descendente
+      // Ordenar los pagos por fecha descendente (los más recientes primero)
       domainPayments.sort((a, b) => b.parsedAt.compareTo(a.parsedAt));
 
       return Right(domainPayments);
@@ -248,7 +239,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
   @override
   Future<Either<Failure, void>> savePayment(PaymentData payment) async {
     try {
-      final externalId = DateTime.now().millisecondsSinceEpoch.toString();
+      final externalId = '${payment.parsedAt.millisecondsSinceEpoch}_${payment.senderName.hashCode}_${payment.amount}';
       final model = PaymentMapper.toModel(payment, externalId, false);
       await localDataSource.savePayment(model);
 
@@ -303,8 +294,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
   Future<Either<Failure, void>> deleteAllPayments() async {
     try {
       await paymentDao.deleteAllPayments();
-      final nowMillis = DateTime.now().millisecondsSinceEpoch;
-      await prefs.setInt('history_last_cleared_at', nowMillis);
+      await prefs.remove('history_last_cleared_at');
       return const Right(null);
     } catch (e) {
       return Left(DatabaseFailure(e.toString()));
