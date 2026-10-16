@@ -127,7 +127,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         val sbnNonNull = sbn ?: return
         val packageName = sbnNonNull.packageName ?: ""
 
-        // 1. VERIFICAR SI LA DETECCIÓN FUE PAUSADA DESDE FLUTTER PARA AHORRAR 100% BATERÍA
+        // 1. VERIFICAR SI LA DETECCIÓN FUE PAUSADA DESDE FLUTTER PARA AHORRAR BATERÍA
         try {
             val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val isDetectionEnabled = flutterPrefs.getBoolean("flutter.detection_enabled", true)
@@ -168,6 +168,12 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
 
         val rawBody = if (fullContent.isNotEmpty()) fullContent else title
         val lowerText = rawBody.lowercase()
+
+        // IGNORAR NOTIFICACIONES VACÍAS (RESÚMENES DE GRUPO EN XIAOMI / SAMSUNG)
+        if (rawBody.trim().isEmpty()) {
+            Log.d("SonoPayService", "Ignorando notificación con texto vacío de $packageName")
+            return
+        }
 
         // SI ES COMANDO ADB, EXIGIR QUE CONTENGA UNA PALABRA CLAVE DE PAGO
         if (isAdbShell) {

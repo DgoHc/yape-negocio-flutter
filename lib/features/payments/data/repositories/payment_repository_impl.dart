@@ -100,6 +100,12 @@ class PaymentRepositoryImpl implements PaymentRepository {
 
         String contentToParse = payload['rawBody'] as String? ?? scraped ?? body;
 
+        // Ignorar eventos con texto completamente vacío (resúmenes de grupo MIUI / Samsung)
+        if (contentToParse.trim().isEmpty && title.trim().isEmpty) {
+          AppLogger.d('PaymentRepository: Ignorando evento de notificación vacío');
+          return;
+        }
+
         var result = PaymentParser.parse(contentToParse);
         if (result.isLeft() && title.isNotEmpty) {
           result = PaymentParser.parse(title);
