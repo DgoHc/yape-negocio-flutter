@@ -383,8 +383,8 @@ class AdminPanelView extends StatelessWidget {
   }
 
   Widget _buildUserItem(BuildContext context, dynamic user) {
-    final username = user.username ?? 'Sin usuario';
-    final role = user.role ?? 'ADMIN';
+    final username = user is Map ? (user['username'] ?? user['name'] ?? user['email'] ?? 'Sin usuario') : (user.username ?? 'Sin usuario');
+    final role = user is Map ? (user['role'] ?? 'ADMIN') : (user.role ?? 'ADMIN');
 
     return SoftCard(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
