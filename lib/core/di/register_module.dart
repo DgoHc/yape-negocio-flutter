@@ -40,9 +40,17 @@ abstract class RegisterModule {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // 1. Aplicar Base URL dinámica si existe
-          final baseUrl = await networkConfig.getBaseUrl();
-          if (baseUrl.isNotEmpty) options.baseUrl = baseUrl;
+          // 1. Aplicar Base URL dinámica asegurando el prefijo /api/
+          var baseUrl = await networkConfig.getBaseUrl();
+          if (baseUrl.isEmpty) baseUrl = EnvConfig.baseUrl;
+
+          if (!baseUrl.endsWith('/')) baseUrl = '$baseUrl/';
+          options.baseUrl = baseUrl;
+
+          // Si el path inicia con '/', removerlo para que Dio no sobreescriba /api/
+          if (options.path.startsWith('/')) {
+            options.path = options.path.substring(1);
+          }
 
           // 2. Aplicar Token de autenticación
           final token = await tokenManager.getToken();
@@ -63,9 +71,7 @@ abstract class RegisterModule {
         onError: (e, handler) async {
           // Manejar expiración de token o falta de permisos
           if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
-            // Limpiar token localmente si el servidor rechaza la sesión
             await tokenManager.deleteToken();
-            // Despachar evento para cerrar sesión en el AuthBloc y redirigir
             try {
               if (sl.isRegistered<AuthBloc>()) {
                 sl<AuthBloc>().add(const LogoutRequested());
