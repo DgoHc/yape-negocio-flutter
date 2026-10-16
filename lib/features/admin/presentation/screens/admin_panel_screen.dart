@@ -642,8 +642,9 @@ class AdminPanelView extends StatelessWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
             onPressed: () {
-              if (profile.id != null) {
-                context.read<AdminBloc>().add(DeleteAppUserRequested(profile.id!));
+              final targetId = profile.id ?? profile.email ?? profile.uuid ?? '';
+              if (targetId.isNotEmpty) {
+                context.read<AdminBloc>().add(DeleteAppUserRequested(targetId));
                 Navigator.pop(dialogContext);
               }
             },
