@@ -52,7 +52,6 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     GetLinkRequests event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.getLinkRequests();
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),
@@ -64,38 +63,72 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     AcceptLinkRequest event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, clearError: true));
-    await _repository.acceptLinkRequest(event.requestId);
-    
-    // Optimistic UI Update: Remover inmediatamente de la lista en pantalla
-    final updatedRequests = List<LinkRequest>.from(state.linkRequests ?? [])
-      ..removeWhere((r) => r.id == event.requestId);
-    emit(state.copyWith(isLoading: false, clearError: true, linkRequests: updatedRequests));
+    final reqToAccept = state.linkRequests?.firstWhere(
+      (r) => r.id == event.requestId,
+      orElse: () => LinkRequest(id: '', senderId: '', receiverId: '', status: '', createdAt: DateTime.now(), updatedAt: DateTime.now()),
+    );
 
-    add(GetLinkRequests());
-    add(GetLinkedUsers());
+    final currentRequests = List<LinkRequest>.from(state.linkRequests ?? [])
+      ..removeWhere((r) => r.id == event.requestId);
+
+    final currentLinks = List<UserLink>.from(state.linkedUsers ?? []);
+    if (reqToAccept != null && reqToAccept.id.isNotEmpty) {
+      currentLinks.insert(0, UserLink(
+        id: reqToAccept.id,
+        sourceId: reqToAccept.senderId,
+        targetId: reqToAccept.receiverId,
+        status: 'active',
+        linkedAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        source: reqToAccept.sender,
+        target: reqToAccept.receiver,
+      ));
+    }
+
+    emit(state.copyWith(
+      isLoading: false,
+      clearError: true,
+      linkRequests: currentRequests,
+      linkedUsers: currentLinks,
+    ));
+
+    await _repository.acceptLinkRequest(event.requestId);
+
+    final remoteResult = await _repository.getLinkedUsers();
+    remoteResult.fold(
+      (_) {},
+      (remoteLinks) {
+        final merged = List<UserLink>.from(remoteLinks);
+        for (final local in currentLinks) {
+          if (!merged.any((m) => m.id == local.id)) {
+            merged.add(local);
+          }
+        }
+        emit(state.copyWith(linkedUsers: merged));
+      },
+    );
   }
 
   Future<void> _onRejectLinkRequest(
     RejectLinkRequest event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, clearError: true));
-    await _repository.rejectLinkRequest(event.requestId);
-
-    // Optimistic UI Update: Remover inmediatamente de la lista en pantalla
-    final updatedRequests = List<LinkRequest>.from(state.linkRequests ?? [])
+    final currentRequests = List<LinkRequest>.from(state.linkRequests ?? [])
       ..removeWhere((r) => r.id == event.requestId);
-    emit(state.copyWith(isLoading: false, clearError: true, linkRequests: updatedRequests));
 
-    add(GetLinkRequests());
+    emit(state.copyWith(
+      isLoading: false,
+      clearError: true,
+      linkRequests: currentRequests,
+    ));
+
+    await _repository.rejectLinkRequest(event.requestId);
   }
 
   Future<void> _onGetLinkedUsers(
     GetLinkedUsers event,
     Emitter<NotificationState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, clearError: true));
     final result = await _repository.getLinkedUsers();
     result.fold(
       (failure) => emit(state.copyWith(isLoading: false, errorMessage: failure.message)),

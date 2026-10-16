@@ -322,21 +322,16 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
 
   Future<void> _onDeleteAppUserRequested(
       DeleteAppUserRequested event, Emitter<AdminState> emit) async {
-    emit(state.copyWith(status: AdminStatus.loading));
-    final result = await _adminRepository.deleteAppUser(event.id);
-    result.fold(
-      (failure) => emit(state.copyWith(status: AdminStatus.failure, error: failure.message)),
-      (_) {
-        final updatedProfiles = List<UserProfile>.from(state.userProfiles)
-          ..removeWhere((p) => p.id == event.id || p.email == event.id || p.uuid == event.id);
-        emit(state.copyWith(
-          status: AdminStatus.success,
-          message: 'Perfil eliminado con éxito',
-          userProfiles: updatedProfiles,
-        ));
-        add(LoadUserProfiles());
-      },
-    );
+    final updatedProfiles = List<UserProfile>.from(state.userProfiles)
+      ..removeWhere((p) => p.id == event.id || p.email == event.id || p.uuid == event.id);
+
+    emit(state.copyWith(
+      status: AdminStatus.success,
+      message: 'Perfil eliminado con éxito',
+      userProfiles: updatedProfiles,
+    ));
+
+    await _adminRepository.deleteAppUser(event.id);
   }
 
   Future<void> _onRegisterDeviceManual(RegisterDeviceManual event, Emitter<AdminState> emit) async {
