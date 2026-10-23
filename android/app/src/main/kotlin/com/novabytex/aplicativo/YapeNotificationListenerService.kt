@@ -36,7 +36,7 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
     override fun onCreate() {
         super.onCreate()
         try {
-            startForegroundService()
+            startMyForegroundNotification()
             initTts()
         } catch (e: Exception) {
             Log.e("SonoPayService", "Error en onCreate del servicio", e)
@@ -89,7 +89,18 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
         BootReceiver.rebindService(this)
     }
 
-    private fun startForegroundService() {
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.d("SonoPayService", "App removida de menú recientes (3 barritas). Manteniendo servicio de segundo plano...")
+        try {
+            startMyForegroundNotification()
+            BootReceiver.rebindService(this)
+        } catch (e: Exception) {
+            Log.e("SonoPayService", "Error al mantener servicio en onTaskRemoved", e)
+        }
+    }
+
+    private fun startMyForegroundNotification() {
         try {
             val channelName = "SonoPay Background Service"
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
