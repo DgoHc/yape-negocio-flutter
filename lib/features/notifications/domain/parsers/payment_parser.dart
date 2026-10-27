@@ -6,6 +6,13 @@ import '../entities/payment_data.dart';
 
 @lazySingleton
 class PaymentParser {
+  static final List<String> _promoKeywords = [
+    "promoción", "promocion", "descuento", "cupón", "cupon", "oferta", "sorteo",
+    "premio", "gana", "ganaste", "cashback", "beneficio", "crédito", "credito",
+    "regalo", "aprovecha", "descubre", "recompensa", "recarga", "sortea",
+    "invita y gana", "yape te regala", "paga y gana"
+  ];
+
   static final List<String> _securityKeywords = [
     "código de seguridad para iniciar",
     "clave de acceso",
@@ -51,11 +58,28 @@ class PaymentParser {
   static Either<Failure, PaymentData> parse(String raw) {
     AppLogger.d('PARSER INPUT: "$raw"');
     
-    if (raw.isEmpty) {
+    if (raw.trim().isEmpty) {
       return const Left(ServerFailure('Texto vacío'));
     }
 
     final lowerRaw = raw.toLowerCase();
+
+    // 0. FILTRAR NOTIFICACIONES PROMOCIONALES / PUBLICITARIAS DE YAPE/PLIN
+    final isStrictPaymentHeader = lowerRaw.contains("confirmación de pago") ||
+        lowerRaw.contains("confirmacion de pago") ||
+        lowerRaw.contains("te yapeó") ||
+        lowerRaw.contains("te yapeo") ||
+        lowerRaw.contains("te envió") ||
+        lowerRaw.contains("te envio");
+
+    if (!isStrictPaymentHeader) {
+      for (final promoWord in _promoKeywords) {
+        if (lowerRaw.contains(promoWord)) {
+          AppLogger.w('PaymentParser: Ignorando notificación promocional: "$raw"');
+          return const Left(ServerFailure('Promoción ignorada'));
+        }
+      }
+    }
 
     // 1. FILTRAR NOTIFICACIONES DE PAGOS SALIENTES
     for (final word in _outgoingKeywords) {
@@ -112,12 +136,12 @@ class PaymentParser {
       }
     }
 
-    // 4. FALLBACK EXIGES PALABRAS CLAVE Y SÍMBOLO MONEDA
+    // 4. FALLBACK EXIGES PALABRAS CLAVE Y SÍMBOLO MONEDA (RESTRINGIDO)
     if (senderName == null || amount == null || amount <= 0) {
       final amountMatch = RegExp(r"(?:S/|PEN|S\./)\s*(\d+(?:[.,]\d+)?)", caseSensitive: false).firstMatch(cleanRaw);
       if (amountMatch != null) {
         final parsedAmount = double.tryParse(amountMatch.group(1)?.replaceAll(',', '.') ?? '');
-        final hasPaymentKeyword = ["yape", "plin", "banco", "pago", "recibiste", "envió", "enviado", "yapeó", "soles"]
+        final hasPaymentKeyword = ["yapeó", "yapeo", "te envió", "te envio", "confirmación de pago", "confirmacion de pago", "recibiste un plin", "recibiste un yape"]
             .any((verb) => lowerRaw.contains(verb));
             
         if (parsedAmount != null && parsedAmount > 0 && hasPaymentKeyword) {
@@ -155,31 +179,25 @@ class PaymentParser {
   static String cleanSenderName(String name) {
     var cleaned = name;
 
-    // 0. Recortar cualquier frase o verbo de envío que se haya colado al final del nombre
     cleaned = cleaned
         .replaceAll(RegExp(r"\s+te\s+(?:envi[óo]|yape[óo]).*$", caseSensitive: false), "")
         .replaceAll(RegExp(r"\s+(?:envi[óo]|yape[óo])\s+un\s+pago.*$", caseSensitive: false), "")
         .replaceAll(RegExp(r"\s+(?:por|de)\s*(?:S/|PEN|S\./)?\s*\d+.*$", caseSensitive: false), "")
         .replaceAll(RegExp(r"\s+El\s+c[óo]d.*$", caseSensitive: false), "");
 
-    // 1. Quitar todos los asteriscos, numerales y símbolos especiales
     cleaned = cleaned.replaceAll(RegExp(r'[*＊#_~^•·¡!]+'), ' ');
 
-    // 2. Quitar prefijos comunes de Yape/Plin/MiBanco y frases de sistema al inicio
     cleaned = cleaned.replaceAll(
       RegExp(r"^(?:Confirmaci[óo]n(?:\s+de)?(?:\s+Pago)?(?:\s+Yape!?)?|Mi\s*Banco:?|Yape:?|Plin:?|¡?Te\s+yapearon!?|¡?Recibiste\s+un\s+(?:Yape|Plin)!?)\s*", caseSensitive: false),
       "",
     );
 
-    // 3. Limpieza adicional de palabras sueltas de sistema
     cleaned = cleaned
         .replaceAll(RegExp(r"\b(?:Confirmaci[óo]n|de|Pago|Yape|Plin|Mi|Banco|Recibiste|un|te|envi[óo]|yape[óo]|por|soles|PEN|S/|Tag\d*)\b", caseSensitive: false), " ");
 
-    // 4. Eliminar cualquier símbolo no alfanumérico sobrante al inicio o final
     cleaned = cleaned.replaceAll(RegExp(r"^[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+"), "");
     cleaned = cleaned.replaceAll(RegExp(r"[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+$"), "");
 
-    // 5. Colapsar espacios múltiples
     cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     return cleaned.isEmpty ? "Cliente" : cleaned;
