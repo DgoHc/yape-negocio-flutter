@@ -102,8 +102,13 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       ),
       body: BlocBuilder<PaymentsBloc, PaymentsState>(
         builder: (context, state) {
-          if (state.status == PaymentsStatus.loading) {
-            return const Center(child: YtLoader());
+          if (state.status == PaymentsStatus.loading && state.payments.isEmpty) {
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: 6,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (_, __) => const YtSkeleton(height: 72, borderRadius: 20),
+            );
           }
 
           final filteredPayments = _selectedDateRange == null

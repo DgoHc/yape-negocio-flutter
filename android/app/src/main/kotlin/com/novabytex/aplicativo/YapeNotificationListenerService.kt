@@ -65,14 +65,14 @@ class YapeNotificationListenerService : NotificationListenerService(), TextToSpe
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForegroundService()
+        startMyForegroundNotification()
         return 1 // START_STICKY
     }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d("SonoPayService", "NotificationListener conectado exitosamente")
-        startForegroundService()
+        startMyForegroundNotification()
         val data = mutableMapOf<String, Any>(
             "status" to "connected"
         )

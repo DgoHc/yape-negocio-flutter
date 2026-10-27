@@ -309,6 +309,11 @@ class PaymentRepositoryImpl implements PaymentRepository {
       await paymentDao.deleteAllPayments();
       final nowMillis = DateTime.now().millisecondsSinceEpoch;
       await prefs.setInt('history_last_cleared_at', nowMillis);
+      try {
+        await remoteDataSource.clearHistory();
+      } catch (e) {
+        AppLogger.w('PaymentRepository: No se pudo registrar borrado en el servidor remoto: $e');
+      }
       AppLogger.i('PaymentRepository: Historial borrado por completo en marca de tiempo $nowMillis');
       return const Right(null);
     } catch (e) {

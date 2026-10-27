@@ -124,10 +124,10 @@ class _AppButtonState extends State<AppButton> {
       onTap: isDisabled ? null : widget.onPressed,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         decoration: BoxDecoration(
           color: isDisabled ? const Color(0xFFE5E7EB) : baseColor,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(24),
           border: isSecondary ? Border.all(color: const Color(0xFFE5E7EB), width: 1.5) : null,
           boxShadow: isDisabled
               ? []
@@ -310,7 +310,10 @@ class YtTextField extends StatelessWidget {
   final bool obscureText;
   final TextInputType? keyboardType;
   final IconData? prefixIcon;
+  final Widget? suffixIcon;
   final String? Function(String?)? validator;
+  final ValueChanged<String>? onChanged;
+  final int maxLines;
 
   const YtTextField({
     super.key,
@@ -321,47 +324,97 @@ class YtTextField extends StatelessWidget {
     this.obscureText = false,
     this.keyboardType,
     this.prefixIcon,
+    this.suffixIcon,
     this.validator,
+    this.onChanged,
+    this.maxLines = 1,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 6.0, bottom: 8.0),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8E9F3), width: 1.2),
+        boxShadow: AppTheme.softProShadow(intensity: 0.3),
+      ),
+      child: TextFormField(
+        controller: controller,
+        obscureText: isPassword || obscureText,
+        keyboardType: keyboardType,
+        validator: validator,
+        onChanged: onChanged,
+        maxLines: maxLines,
+        style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14.5),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
+          floatingLabelStyle: const TextStyle(color: Color(0xFF9E7000), fontSize: 13, fontWeight: FontWeight.bold),
+          hintText: hintText,
+          hintStyle: const TextStyle(color: AppTheme.textPlaceholder, fontSize: 13, fontWeight: FontWeight.normal),
+          prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: const Color(0xFFD99B00), size: 20) : null,
+          suffixIcon: suffixIcon,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         ),
-        Container(
+      ),
+    );
+  }
+}
+
+class YtSkeleton extends StatefulWidget {
+  final double height;
+  final double width;
+  final double borderRadius;
+
+  const YtSkeleton({
+    super.key,
+    this.height = 70,
+    this.width = double.infinity,
+    this.borderRadius = 20,
+  });
+
+  @override
+  State<YtSkeleton> createState() => _YtSkeletonState();
+}
+
+class _YtSkeletonState extends State<YtSkeleton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.35, end: 0.85).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          height: widget.height,
+          width: widget.width,
           decoration: BoxDecoration(
-            color: AppTheme.surfaceColor,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE8E9F3), width: 1.2),
-            boxShadow: AppTheme.softProShadow(intensity: 0.3),
+            color: Color.lerp(const Color(0xFFE8E9F3), const Color(0xFFF7F8FC), _animation.value),
+            borderRadius: BorderRadius.circular(widget.borderRadius),
           ),
-          child: TextFormField(
-            controller: controller,
-            obscureText: isPassword || obscureText,
-            keyboardType: keyboardType,
-            validator: validator,
-            style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 15),
-            decoration: InputDecoration(
-              hintText: hintText,
-              hintStyle: const TextStyle(color: AppTheme.textPlaceholder, fontWeight: FontWeight.normal),
-              prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: const Color(0xFFD99B00), size: 20) : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            ),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
